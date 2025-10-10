@@ -2,8 +2,10 @@ cmake_minimum_required(VERSION 3.10)
 
 project(RGSEngine)
 
-find_package(fmt CONFIG REQUIRED)
+find_package(SDL3 CONFIG REQUIRED)
+find_package(assimp CONFIG REQUIRED)
 
-add_executable(RGSEngine Engine.cpp)
+add_executable(RGSEngine src/Engine.cpp)
 
-target_link_libraries(RGSEngine PRIVATE fmt::fmt)
+target_link_libraries(RGSEngine PRIVATE SDL3::SDL3)
+target_link_libraries(RGSEngine PRIVATE assimp::assimp)
