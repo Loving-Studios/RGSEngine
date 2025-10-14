@@ -42,6 +42,16 @@ bool Window::Awake()
 		if (borderless == true)        flags |= SDL_WINDOW_BORDERLESS;
 		if (resizable == true)         flags |= SDL_WINDOW_RESIZABLE;
 
+		//HAY QUE CAMBIAR ESTO A LA VERSION 4.6
+		// Request an OpenGL 4.5 context (should be core)
+		SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
+		// Also request a depth buffer
+		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+		SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+
+
 		// SDL3: SDL_CreateWindow(title, w, h, flags). Set position separately.
 		window = SDL_CreateWindow("RGSEngine Application", width, height, flags);
 

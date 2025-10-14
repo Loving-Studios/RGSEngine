@@ -78,7 +78,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	LOG("Closing Engine ===============================");
+	LOG("Closing Application ===============================");
 
 	return result;
 }
