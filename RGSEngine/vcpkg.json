@@ -2,7 +2,8 @@
   "dependencies": [
     "assimp",
     "fmt",
+    "glad",
     "sdl3",
-    "glad"
+    "glm"
   ]
 }
