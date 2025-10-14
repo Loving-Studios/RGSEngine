@@ -38,9 +38,11 @@ bool Window::Awake()
 		height = 720;
 		scale = 1;
 
-		if (fullscreen == true)        flags |= SDL_WINDOW_FULLSCREEN;
-		if (borderless == true)        flags |= SDL_WINDOW_BORDERLESS;
-		if (resizable == true)         flags |= SDL_WINDOW_RESIZABLE;
+		//if (fullscreen == true)        flags |= SDL_WINDOW_FULLSCREEN;
+		//if (borderless == true)        flags |= SDL_WINDOW_BORDERLESS;
+		//if (resizable == true)         flags |= SDL_WINDOW_RESIZABLE;
+		flags |= SDL_WINDOW_OPENGL;
+		
 
 		// Request an OpenGL 4.5 context (should be core)
 		SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
@@ -67,7 +69,7 @@ bool Window::Awake()
 				SDL_SetWindowFullscreen(window, true);
 			}
 			SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-			SDL_ShowWindow(window);
+			SDL_GL_CreateContext(window);
 		}
 	}
 
