@@ -4,7 +4,8 @@
 
 #include "Window.h"
 #include "Input.h"
-
+#include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 // Constructor
 Application::Application() {
