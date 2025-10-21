@@ -8,6 +8,7 @@
 // Modules
 class Window;
 class Input;
+class Render;
 
 class Application
 {

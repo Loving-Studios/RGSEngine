@@ -69,7 +69,7 @@ bool Window::Awake()
 				SDL_SetWindowFullscreen(window, true);
 			}
 			SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-			SDL_GL_CreateContext(window);
+			//SDL_GL_CreateContext(window);
 		}
 	}
 
