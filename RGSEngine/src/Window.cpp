@@ -72,7 +72,16 @@ bool Window::Awake()
 				SDL_SetWindowFullscreen(window, true);
 			}
 			SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-			//SDL_GL_CreateContext(window);
+			SDL_GL_CreateContext(window);
+			glContext = SDL_GL_CreateContext(window);
+			if (glContext == NULL)
+			{
+				ret = false;
+			}
+			else
+			{
+				SDL_GL_SetSwapInterval(1);
+			}
 		}
 	}
 
@@ -84,6 +93,11 @@ bool Window::CleanUp()
 {
 	LOG("Destroying SDL window and quitting all SDL systems");
 
+	//Destroy context
+	if (glContext != NULL)
+	{
+		SDL_GL_DestroyContext(glContext);
+	}
 	// Destroy window
 	if (window != NULL)
 	{

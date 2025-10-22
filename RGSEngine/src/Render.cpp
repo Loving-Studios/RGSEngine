@@ -21,31 +21,41 @@ Render::~Render()
 // Called before render is available
 bool Render::Awake()
 {
-	LOG("Create SDL rendering context");
-	bool ret = true;
+    LOG("Create SDL rendering context");
+    bool ret = true;
 
-	int scale = Application::GetInstance().window->GetScale();
-	SDL_Window* window = Application::GetInstance().window->window;
+    SDL_Window* window = Application::GetInstance().window->window;
 
-	// SDL3: no flags; create default renderer and set vsync separately
-	renderer = SDL_CreateRenderer(window, nullptr);
+    if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress))
+    {
+        LOG("Failed to initialize GLAD");
+        return false;
+    }
 
-	if (renderer == NULL)
+
+    // Config viewport
+    int width, height;
+    Application::GetInstance().window->GetWindowSize(width, height);
+    glViewport(0, 0, width, height);
+
+    /*
+    renderer = SDL_CreateRenderer(window, nullptr);
+    if (renderer == NULL)
+    {
+        LOG("Could not create the renderer! SDL_Error: %s\n", SDL_GetError());
+        ret = false;
+    }
+    */
+	/*else
 	{
-		LOG("Could not create the renderer! SDL_Error: %s\n", SDL_GetError());
-		ret = false;
-	}
-	else
-	{
-		
+	camera.w = Engine::GetInstance().window->width * scale;
+	camera.h = Engine::GetInstance().window->height * scale;
+	camera.x = 0;
+	camera.y = 0;
 
-		/*camera.w = Engine::GetInstance().window->width * scale;
-		camera.h = Engine::GetInstance().window->height * scale;
-		camera.x = 0;
-		camera.y = 0;*/
-	}
+	}*/
 
-	return ret;
+    return ret;
 }
 
 // Called before the first frame
@@ -63,8 +73,15 @@ bool Render::Start()
 // Called each loop iteration
 bool Render::PreUpdate()
 {
-	SDL_RenderClear(renderer);
-	return true;
+    glClearColor(
+        background.r / 255.0f,
+        background.g / 255.0f,
+        background.b / 255.0f,
+        background.a / 255.0f
+    );
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    return true;
 }
 
 bool Render::Update(float dt)
@@ -75,8 +92,7 @@ bool Render::Update(float dt)
 
 bool Render::PostUpdate()
 {
-	SDL_SetRenderDrawColor(renderer, background.r, background.g, background.g, background.a);
-	SDL_RenderPresent(renderer);
+    SDL_GL_SwapWindow(Application::GetInstance().window->window);
 	return true;
 }
 
@@ -84,7 +100,7 @@ bool Render::PostUpdate()
 bool Render::CleanUp()
 {
 	LOG("Destroying SDL render");
-	SDL_DestroyRenderer(renderer);
+	//SDL_DestroyRenderer(renderer);
 	return true;
 }
 

@@ -4,6 +4,7 @@
 
 #include "Window.h"
 #include "Input.h"
+#include "Render.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
@@ -15,11 +16,13 @@ Application::Application() {
     // Modules
     window = std::make_shared<Window>();
     input = std::make_shared<Input>();
+    render = std::make_shared<Render>();
 
     // Ordered for awake / Start / Update
     // Reverse order of CleanUp
     AddModule(std::static_pointer_cast<Module>(window));
     AddModule(std::static_pointer_cast<Module>(input));
+    AddModule(std::static_pointer_cast<Module>(render));
 
     // Render last 
 

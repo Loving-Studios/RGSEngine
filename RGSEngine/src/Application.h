@@ -75,6 +75,7 @@ public:
 	// Modules
 	std::shared_ptr<Window> window;
 	std::shared_ptr<Input> input;
+	std::shared_ptr<Render> render;
 
 private:
 	float dt;

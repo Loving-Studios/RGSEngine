@@ -1,6 +1,7 @@
 #pragma once
 #include "Module.h"
 #include <SDL3/SDL.h>
+#include <glad/glad.h>
 
 class Render : public Module
 {
@@ -34,7 +35,7 @@ public:
 	
 
 public:
-	SDL_Renderer* renderer;
+	//SDL_Renderer* renderer;
 	SDL_Color background;
 
 private:
