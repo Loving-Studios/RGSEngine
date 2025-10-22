@@ -1,7 +1,10 @@
 #pragma once
 #include "Module.h"
-#include <SDL3/SDL.h>
 #include <glad/glad.h>
+#include <SDL3/SDL.h>
+#include <memory>
+
+class Shader;
 
 class Render : public Module
 {
@@ -32,13 +35,17 @@ public:
 
 	// Set background color
 	void SetBackgroundColor(SDL_Color color);
-	
+
 
 public:
-	//SDL_Renderer* renderer;
 	SDL_Color background;
 
 private:
+	
+	unsigned int VAO; // Vertex Array Object
+	unsigned int VBO; // Vertex Buffer Object
 
+	// Shader
+	std::unique_ptr<Shader> shader;
 };
 

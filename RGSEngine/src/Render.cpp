@@ -2,15 +2,19 @@
 #include "Window.h"
 #include "Render.h"
 #include "Log.h"
+#include "Shader.h"
 
 
 Render::Render() : Module()
 {
 	name = "render";
-	background.r = 255;
-	background.g = 150;
-	background.b = 25;
+	background.r = 0;
+	background.g = 0;
+	background.b = 0;
 	background.a = 255;
+
+    VAO = 0;
+    VBO = 0;
 }
 
 // Destructor
@@ -67,6 +71,39 @@ bool Render::Start()
 	{
 		LOG("SDL_GetRenderViewport failed: %s", SDL_GetError());
 	}*/
+	LOG("Render start - Creating triangle");
+
+	//Create shader
+	shader = std::make_unique<Shader>();
+
+// Triangle vertices
+	float vertices[] = {
+		-0.5f, -0.5f, 0.0f,  // left
+		 0.5f, -0.5f, 0.0f,  // right
+		 0.0f,  0.5f, 0.0f   // up
+	};
+
+	// Create VAO and VBO
+	glGenVertexArrays(1, &VAO);
+	glGenBuffers(1, &VBO);
+
+	// Bind Vertex Array Object
+	glBindVertexArray(VAO);
+
+	// Copy vertices to buffer
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+	// Config vertices
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+
+	LOG("Triangle created successfully");
+
 	return true;
 }
 
@@ -86,7 +123,9 @@ bool Render::PreUpdate()
 
 bool Render::Update(float dt)
 {
-
+	shader->Use();
+	glBindVertexArray(VAO);
+	glDrawArrays(GL_TRIANGLES, 0, 3);
 	return true;
 }
 
@@ -101,6 +140,8 @@ bool Render::CleanUp()
 {
 	LOG("Destroying SDL render");
 	//SDL_DestroyRenderer(renderer);
+	glDeleteVertexArrays(1, &VAO);
+	glDeleteBuffers(1, &VBO);
 	return true;
 }
 
