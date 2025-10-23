@@ -8,14 +8,14 @@ namespace DefaultShaders
     const char* vertexShader = R"(
     #version 460 core
     layout (location = 0) in vec3 aPos;
-    layout (location = 1) in vec2 aTexCoord; // NUEVO: input de UVs
+    layout (location = 1) in vec2 aTexCoord;
 
-    out vec2 TexCoord; // NUEVO: pasar UVs al fragment shader
+    out vec2 TexCoord;
 
     void main()
     {
         gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
-        TexCoord = aTexCoord; // NUEVO: asignación
+        TexCoord = aTexCoord;
     }
     )";
 
@@ -23,12 +23,11 @@ namespace DefaultShaders
     #version 460 core
     out vec4 FragColor;
 
-    in vec2 TexCoord; // NUEVO: recibir UVs del vertex shader
-    uniform sampler2D tex1; // NUEVO: la textura que vamos a muestrear
+    in vec2 TexCoord;
+    uniform sampler2D tex1;
 
     void main()
     {
-        // MODIFICADO: en lugar de un color fijo, lee de la textura
         FragColor = texture(tex1, TexCoord); 
     }
     )";
