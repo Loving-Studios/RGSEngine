@@ -5,29 +5,32 @@
 
 namespace DefaultShaders
 {
+    // Vertex Shader
     const char* vertexShader = R"(
     #version 460 core
-    layout (location = 0) in vec3 aPos;
-    layout (location = 1) in vec2 aTexCoord;
+    layout (location = 0) in vec3 aPos; // Positions
+    layout (location = 1) in vec2 aTexCoord; // Input UV
 
-    out vec2 TexCoord;
+    out vec2 TexCoord; // UV to the fragment shader
 
     void main()
     {
         gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
-        TexCoord = aTexCoord;
+        TexCoord = aTexCoord; // Assign
     }
     )";
 
+    // Fragment Shader
     const char* fragmentShader = R"(
     #version 460 core
     out vec4 FragColor;
 
-    in vec2 TexCoord;
-    uniform sampler2D tex1;
+    in vec2 TexCoord; // Receive the UVs from the Vertex Shader
+    uniform sampler2D tex1; // The texture set to show
 
     void main()
     {
+        //Instead of a fixed colour in the texture, reads from the texture
         FragColor = texture(tex1, TexCoord); 
     }
     )";
