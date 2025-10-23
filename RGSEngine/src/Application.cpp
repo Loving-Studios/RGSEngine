@@ -7,6 +7,7 @@
 #include "Render.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <SDL3/SDL_scancode.h>
 
 // Constructor
 Application::Application() {
@@ -79,6 +80,9 @@ bool Application::Update() {
     PrepareUpdate();
 
     if (input->GetWindowEvent(WE_QUIT) == true)
+        ret = false;
+    // ESC key to exit the game, when imgui is implemented remove this line.
+    if (input->GetKey(SDL_SCANCODE_ESCAPE) == KEY_DOWN)
         ret = false;
 
     if (ret == true)

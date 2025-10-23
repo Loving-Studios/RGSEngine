@@ -44,7 +44,8 @@ private:
 	
 	unsigned int VAO; // Vertex Array Object
 	unsigned int VBO; // Vertex Buffer Object
-
+	unsigned int IBO; // Index Buffer Object
+	unsigned int textureID;
 	// Shader
 	std::unique_ptr<Shader> shader;
 };
