@@ -117,6 +117,12 @@ bool Application::CleanUp() {
 // ---------------------------------------------
 void Application::PrepareUpdate()
 {
+    uint64_t currentTime = SDL_GetTicks();
+    if (lastFrameTime == 0)
+        lastFrameTime = currentTime;
+
+    dt = (currentTime - lastFrameTime) / 1000.0f;
+    lastFrameTime = currentTime;
 }
 
 // ---------------------------------------------

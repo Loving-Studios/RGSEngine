@@ -1,26 +1,29 @@
 #include "Shader.h"
 #include "Log.h"
 #include <iostream>
+#include <glm/gtc/type_ptr.hpp>
 
 
 namespace DefaultShaders
 {
-    // Vertex Shader
     const char* vertexShader = R"(
     #version 460 core
     layout (location = 0) in vec3 aPos; // Positions
     layout (location = 1) in vec2 aTexCoord; // Input UV
 
+    uniform mat4 model;
+    uniform mat4 view;
+    uniform mat4 projection;
+
     out vec2 TexCoord; // UV to the fragment shader
 
     void main()
     {
-        gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
+        gl_Position = projection * view * model * vec4(aPos, 1.0);
         TexCoord = aTexCoord; // Assign
     }
     )";
 
-    // Fragment Shader
     const char* fragmentShader = R"(
     #version 460 core
     out vec4 FragColor;
@@ -38,7 +41,7 @@ namespace DefaultShaders
 
 Shader::Shader(const char* vertexSource, const char* fragmentSource)
 {
-    
+
     if (vertexSource == nullptr)
         vertexSource = DefaultShaders::vertexShader;
     if (fragmentSource == nullptr)
@@ -86,6 +89,11 @@ void Shader::SetInt(const std::string& name, int value) const
 void Shader::SetFloat(const std::string& name, float value) const
 {
     glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
+}
+
+void Shader::SetMat4(const std::string& name, const glm::mat4& mat) const
+{
+    glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, glm::value_ptr(mat));
 }
 
 void Shader::CheckCompileErrors(unsigned int shader, std::string type)

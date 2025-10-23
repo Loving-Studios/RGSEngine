@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <list>
+#include <cstdint>
 #include "Module.h"
 
 
@@ -79,4 +80,5 @@ public:
 
 private:
 	float dt;
+	uint64_t lastFrameTime = 0;
 };
