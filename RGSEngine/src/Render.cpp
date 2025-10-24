@@ -208,13 +208,20 @@ bool Render::PreUpdate()
 		int deltaY = currentMouseY - lastMouseY;
 
 		// Update angles of rotation
+		float Lento = 0.2;
 		float sensitivity = 0.5f;
-		rotationY += deltaX * sensitivity;  
-		rotationX += deltaY * sensitivity;  
+		if (input->GetKey(SDL_SCANCODE_LSHIFT)) {//Rapidiño 
+			rotationY += deltaX * sensitivity;  //Esta es la X
+			rotationX += deltaY * sensitivity; //Esta es la Y
+		}
+		else {
+			rotationY += deltaX * sensitivity * Lento;  //Esta es la X
+			rotationX += deltaY * sensitivity * Lento; //Esta es la Y
+		}
 
 		// Limit rotation on X to avoid full vertical turns
-		if (rotationX > 89.0f) rotationX = 89.0f;
-		if (rotationX < -89.0f) rotationX = -89.0f;
+		/*if (rotationX > 89.0f) rotationX = 89.0f;
+		if (rotationX < -89.0f) rotationX = -89.0f;*/
 
 		// Update last mouse position
 		lastMouseX = currentMouseX;
