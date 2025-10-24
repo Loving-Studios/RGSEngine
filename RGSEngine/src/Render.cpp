@@ -35,6 +35,7 @@ Render::Render() : Module()
 
 	cameraSpeed = 2.5f;
 	cameraSensitivity = 0.1f;
+	cameraFOV = 45.0f;
 
 	isRightDragging = false;
 
@@ -188,7 +189,7 @@ void Render::UpdateCameraVectors()
 	front.y = sin(glm::radians(cameraPitch));
 	front.z = sin(glm::radians(cameraYaw)) * cos(glm::radians(cameraPitch));
 	cameraFront = glm::normalize(front);
-	
+
 	// Recalculate right y up
 	cameraRight = glm::normalize(glm::cross(cameraFront, glm::vec3(0.0f, 1.0f, 0.0f)));
 	cameraUp = glm::normalize(glm::cross(cameraRight, cameraFront));
@@ -198,9 +199,9 @@ void Render::UpdateCameraVectors()
 void Render::ProcessKeyboardMovement(float dt)
 {
 	Input* input = Application::GetInstance().input.get();
-	
+
 	float speed = cameraSpeed * dt;
-	
+
 	// WASD movement
 	if (input->GetKey(SDL_SCANCODE_W))
 		cameraPos += cameraFront * speed;
@@ -216,13 +217,13 @@ void Render::ProcessMouseFreeLook(int deltaX, int deltaY)
 {
 	cameraYaw += deltaX * cameraSensitivity;
 	cameraPitch -= deltaY * cameraSensitivity;
-	
+
 	// Limit pitch to avoid flip
 	if (cameraPitch > 89.0f)
 		cameraPitch = 89.0f;
 	if (cameraPitch < -89.0f)
 		cameraPitch = -89.0f;
-	
+
 	UpdateCameraVectors();
 }
 // Called each loop iteration
@@ -239,19 +240,19 @@ bool Render::PreUpdate()
 	// Mouse control for rotation
 	Input* input = Application::GetInstance().input.get();
 
-	if (input->GetMouseButtonDown(SDL_BUTTON_RIGHT) == KEY_DOWN)  
+	if (input->GetMouseButtonDown(SDL_BUTTON_RIGHT) == KEY_DOWN)
 	{
-		isRightDragging = true;  
+		isRightDragging = true;
 		input->GetMousePosition(lastMouseX, lastMouseY);
 	}
 
-	if (input->GetMouseButtonDown(SDL_BUTTON_RIGHT) == KEY_UP)  
+	if (input->GetMouseButtonDown(SDL_BUTTON_RIGHT) == KEY_UP)
 	{
-		isRightDragging = false;  
+		isRightDragging = false;
 	}
 
-	// FREE LOOK
-	if (isRightDragging && input->GetMouseButtonDown(SDL_BUTTON_RIGHT) == KEY_REPEAT) 
+	// Free look
+	if (isRightDragging && input->GetMouseButtonDown(SDL_BUTTON_RIGHT) == KEY_REPEAT)
 	{
 		int currentMouseX, currentMouseY;
 		input->GetMousePosition(currentMouseX, currentMouseY);
@@ -265,6 +266,18 @@ bool Render::PreUpdate()
 		lastMouseY = currentMouseY;
 	}
 
+	// Zoom
+	int mouseWheelY = input->GetMouseWheel();
+	if (mouseWheelY != 0)
+	{
+		cameraFOV -= mouseWheelY * 2.0f;
+		// Limit FOV between 1 and 90 degrees
+		if (cameraFOV < 1.0f)
+			cameraFOV = 1.0f;
+		if (cameraFOV > 90.0f)
+			cameraFOV = 90.0f;
+	}
+
 	return true;
 }
 
@@ -275,20 +288,20 @@ bool Render::Update(float dt)
 	// Only allow WASD movement when the right button is pressed
 	if (isRightDragging)
 	{
-		ProcessKeyboardMovement(dt);  
+		ProcessKeyboardMovement(dt);
 	}
 	shader->Use();
 
-	
-	glm::mat4 model = glm::mat4(1.0f);  
 
-	
-	glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);  
+	glm::mat4 model = glm::mat4(1.0f);
+
+
+	glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 
 	// Create perspective projection
 	int width, height;
 	Application::GetInstance().window->GetWindowSize(width, height);
-	glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 100.0f);
+	glm::mat4 projection = glm::perspective(glm::radians(cameraFOV), (float)width / (float)height, 0.1f, 100.0f);
 
 	// Send matrices to shader
 	shader->SetMat4("model", model);

@@ -1,6 +1,3 @@
-#pragma once
-#include "Module.h"
-#include <glad/glad.h>
 #include <SDL3/SDL.h>
 #include <glm/glm.hpp>
 #include <memory>
@@ -64,6 +61,7 @@ private:
 	//Camera movement speed
 	float cameraSpeed;
 	float cameraSensitivity;
+	float cameraFOV;      // Field of view
 
 	// Mouse control 
 	bool isRightDragging;

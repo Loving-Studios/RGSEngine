@@ -14,6 +14,7 @@ Input::Input() : Module()
 	memset(mouseButtons, KEY_IDLE, sizeof(KeyState) * NUM_MOUSE_BUTTONS);
 	memset(windowEvents, 0, sizeof(windowEvents));
 	mouseMotionX = mouseMotionY = mouseX = mouseY = 0;
+	mouseWheelY = 0;
 }
 
 // Destructor
@@ -48,6 +49,8 @@ bool Input::Start()
 bool Input::PreUpdate()
 {
 	static SDL_Event event;
+
+	mouseWheelY = 0;
 
 	int numKeys = 0;
 	const bool* keys = SDL_GetKeyboardState(&numKeys);
@@ -119,6 +122,10 @@ bool Input::PreUpdate()
 			mouseY = (int)(event.motion.y / scale);
 		}
 		break;
+
+		case SDL_EVENT_MOUSE_WHEEL:
+			mouseWheelY = (int)event.wheel.y;
+			break;
 		}
 	}
 
@@ -148,4 +155,9 @@ void Input::GetMouseMotion(int& x, int& y)
 {
 	x = mouseMotionX;
 	y = mouseMotionY;
+}
+
+int Input::GetMouseWheel() const
+{
+	return mouseWheelY;
 }
