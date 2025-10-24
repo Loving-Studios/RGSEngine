@@ -24,10 +24,20 @@ Render::Render() : Module()
 	IBO = 0;
 	textureID = 0;
 
-	// Initialize rotation and mouse control
-	rotationX = 0.0f;
-	rotationY = 0.0f;
-	isDragging = false;
+	// Initialize camera rotation
+	cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+	cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+	cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+	cameraRight = glm::vec3(1.0f, 0.0f, 0.0f);
+
+	cameraYaw = -90.0f;
+	cameraPitch = 0.0f;
+
+	cameraSpeed = 2.5f;
+	cameraSensitivity = 0.1f;
+
+	isRightDragging = false;
+
 	lastMouseX = 0;
 	lastMouseY = 0;
 }
@@ -170,6 +180,51 @@ bool Render::Start()
 	return true;
 }
 
+void Render::UpdateCameraVectors()
+{
+	// Calcular nuevo vector 
+	glm::vec3 front;
+	front.x = cos(glm::radians(cameraYaw)) * cos(glm::radians(cameraPitch));
+	front.y = sin(glm::radians(cameraPitch));
+	front.z = sin(glm::radians(cameraYaw)) * cos(glm::radians(cameraPitch));
+	cameraFront = glm::normalize(front);
+	
+	// Recalculate right y up
+	cameraRight = glm::normalize(glm::cross(cameraFront, glm::vec3(0.0f, 1.0f, 0.0f)));
+	cameraUp = glm::normalize(glm::cross(cameraRight, cameraFront));
+}
+
+
+void Render::ProcessKeyboardMovement(float dt)
+{
+	Input* input = Application::GetInstance().input.get();
+	
+	float speed = cameraSpeed * dt;
+	
+	// WASD movement
+	if (input->GetKey(SDL_SCANCODE_W))
+		cameraPos += cameraFront * speed;
+	if (input->GetKey(SDL_SCANCODE_S))
+		cameraPos -= cameraFront * speed;
+	if (input->GetKey(SDL_SCANCODE_A))
+		cameraPos -= cameraRight * speed;
+	if (input->GetKey(SDL_SCANCODE_D))
+		cameraPos += cameraRight * speed;
+}
+
+void Render::ProcessMouseFreeLook(int deltaX, int deltaY)
+{
+	cameraYaw += deltaX * cameraSensitivity;
+	cameraPitch -= deltaY * cameraSensitivity;
+	
+	// Limit pitch to avoid flip
+	if (cameraPitch > 89.0f)
+		cameraPitch = 89.0f;
+	if (cameraPitch < -89.0f)
+		cameraPitch = -89.0f;
+	
+	UpdateCameraVectors();
+}
 // Called each loop iteration
 bool Render::PreUpdate()
 {
@@ -184,46 +239,28 @@ bool Render::PreUpdate()
 	// Mouse control for rotation
 	Input* input = Application::GetInstance().input.get();
 
-	// Detect when left mouse button is pressed
-	if (input->GetMouseButtonDown(SDL_BUTTON_LEFT) == KEY_DOWN)
+	if (input->GetMouseButtonDown(SDL_BUTTON_RIGHT) == KEY_DOWN)  
 	{
-		isDragging = true;
+		isRightDragging = true;  
 		input->GetMousePosition(lastMouseX, lastMouseY);
 	}
 
-	// Detect when button release
-	if (input->GetMouseButtonDown(SDL_BUTTON_LEFT) == KEY_UP)
+	if (input->GetMouseButtonDown(SDL_BUTTON_RIGHT) == KEY_UP)  
 	{
-		isDragging = false;
+		isRightDragging = false;  
 	}
 
-	//  Update the rotation
-	if (isDragging && input->GetMouseButtonDown(SDL_BUTTON_LEFT) == KEY_REPEAT)
+	// FREE LOOK
+	if (isRightDragging && input->GetMouseButtonDown(SDL_BUTTON_RIGHT) == KEY_REPEAT) 
 	{
 		int currentMouseX, currentMouseY;
 		input->GetMousePosition(currentMouseX, currentMouseY);
 
-		
 		int deltaX = currentMouseX - lastMouseX;
 		int deltaY = currentMouseY - lastMouseY;
 
-		// Update angles of rotation
-		double Lento = 0.2;
-		float sensitivity = 0.5f;
-		if (input->GetKey(SDL_SCANCODE_LSHIFT)) {//Rapidiño 
-			rotationY += deltaX * sensitivity;  //Esta es la X
-			rotationX += deltaY * sensitivity; //Esta es la Y
-		}
-		else {
-			rotationY += deltaX * sensitivity * Lento;  //Esta es la X
-			rotationX += deltaY * sensitivity * Lento; //Esta es la Y
-		}
+		ProcessMouseFreeLook(deltaX, deltaY);
 
-		// Limit rotation on X to avoid full vertical turns
-		/*if (rotationX > 89.0f) rotationX = 89.0f;
-		if (rotationX < -89.0f) rotationX = -89.0f;*/
-
-		// Update last mouse position
 		lastMouseX = currentMouseX;
 		lastMouseY = currentMouseY;
 	}
@@ -233,24 +270,25 @@ bool Render::PreUpdate()
 
 bool Render::Update(float dt)
 {
+	Input* input = Application::GetInstance().input.get();
+
+	// Only allow WASD movement when the right button is pressed
+	if (isRightDragging)
+	{
+		ProcessKeyboardMovement(dt);  
+	}
 	shader->Use();
 
-	// Create transformation matrices
-	glm::mat4 model = glm::mat4(1.0f);
-	glm::mat4 view = glm::mat4(1.0f);
-	glm::mat4 projection = glm::mat4(1.0f);
+	
+	glm::mat4 model = glm::mat4(1.0f);  
 
-	// Apply rotations based on mouse input
-	model = glm::rotate(model, glm::radians(rotationX), glm::vec3(1.0f, 0.0f, 0.0f)); // Rotate on X
-	model = glm::rotate(model, glm::radians(rotationY), glm::vec3(0.0f, 1.0f, 0.0f)); // Rotate on Y
-
-	// Move camera back to see the object
-	view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
+	
+	glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);  
 
 	// Create perspective projection
 	int width, height;
 	Application::GetInstance().window->GetWindowSize(width, height);
-	projection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 100.0f);
+	glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 100.0f);
 
 	// Send matrices to shader
 	shader->SetMat4("model", model);

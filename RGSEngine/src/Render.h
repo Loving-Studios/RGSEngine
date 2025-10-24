@@ -2,6 +2,7 @@
 #include "Module.h"
 #include <glad/glad.h>
 #include <SDL3/SDL.h>
+#include <glm/glm.hpp>
 #include <memory>
 
 class Shader;
@@ -50,13 +51,30 @@ private:
 	// Shader
 	std::unique_ptr<Shader> shader;
 
-	// Rotation angles 
-	float rotationX;
-	float rotationY;
+	// Camera propieties 
+
+	glm::vec3 cameraPos; // Camera position
+	glm::vec3 cameraFront; // Direction the camera is looking at
+	glm::vec3 cameraUp; // Vector up camera
+	glm::vec3 cameraRight; // Vector right camera
+
+	float cameraYaw;      // Rotation horizontal (Y)
+	float cameraPitch;   // Rotation vertical (X)
+
+	//Camera movement speed
+	float cameraSpeed;
+	float cameraSensitivity;
 
 	// Mouse control 
-	bool isDragging;
+	bool isRightDragging;
 	int lastMouseX;
 	int lastMouseY;
+
+	//Helper functions
+	void UpdateCameraVectors();
+	void ProcessKeyboardMovement(float dt);
+	void ProcessMouseFreeLook(int deltaX, int deltaY);
+
+
 };
 
