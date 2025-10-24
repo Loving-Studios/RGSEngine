@@ -10,6 +10,7 @@
 class Window;
 class Input;
 class Render;
+class LoadFiles;
 
 class Application
 {
