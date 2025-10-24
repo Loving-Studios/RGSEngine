@@ -208,7 +208,7 @@ bool Render::PreUpdate()
 		int deltaY = currentMouseY - lastMouseY;
 
 		// Update angles of rotation
-		float Lento = 0.2;
+		double Lento = 0.2;
 		float sensitivity = 0.5f;
 		if (input->GetKey(SDL_SCANCODE_LSHIFT)) {//Rapidiño 
 			rotationY += deltaX * sensitivity;  //Esta es la X
