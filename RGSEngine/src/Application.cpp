@@ -5,6 +5,8 @@
 #include "Window.h"
 #include "Input.h"
 #include "Render.h"
+#include "ModuleScene.h"
+
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <SDL3/SDL_scancode.h>
@@ -17,12 +19,14 @@ Application::Application() {
     // Modules
     window = std::make_shared<Window>();
     input = std::make_shared<Input>();
+    scene = std::make_shared<ModuleScene>();
     render = std::make_shared<Render>();
 
     // Ordered for awake / Start / Update
     // Reverse order of CleanUp
     AddModule(std::static_pointer_cast<Module>(window));
     AddModule(std::static_pointer_cast<Module>(input));
+    AddModule(std::static_pointer_cast<Module>(scene));
     AddModule(std::static_pointer_cast<Module>(render));
 
     // Render last 

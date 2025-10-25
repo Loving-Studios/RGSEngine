@@ -1,8 +1,10 @@
+#include "Module.h" 
 #include <SDL3/SDL.h>
 #include <glm/glm.hpp>
 #include <memory>
 
 class Shader;
+class GameObject;
 
 class Render : public Module
 {
@@ -40,11 +42,6 @@ public:
 
 private:
 
-	unsigned int VAO; // Vertex Array Object
-	unsigned int VBO; // Vertex Buffer Object
-	unsigned int IBO; // Index Buffer Object
-	unsigned int textureID;
-
 	// Shader
 	std::unique_ptr<Shader> shader;
 
@@ -73,6 +70,6 @@ private:
 	void ProcessKeyboardMovement(float dt);
 	void ProcessMouseFreeLook(int deltaX, int deltaY);
 
-
+	void DrawGameObject(GameObject* go);
 };
 

@@ -5,6 +5,11 @@
 #include "Shader.h"
 #include "Input.h"
 
+#include "ModuleScene.h"
+#include "GameObject.h"
+#include "ComponentTransform.h"
+#include "ComponentMesh.h"
+#include "ComponentTexture.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -18,11 +23,6 @@ Render::Render() : Module()
 	background.g = 0;
 	background.b = 0;
 	background.a = 255;
-
-	VAO = 0;
-	VBO = 0;
-	IBO = 0;
-	textureID = 0;
 
 	// Initialize camera rotation
 	cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
@@ -79,104 +79,6 @@ bool Render::Start()
 
 	//Create shader
 	shader = std::make_unique<Shader>();
-
-	// Pyramid vertices with UV coordinates
-	// X, Y, Z, U, V
-	float vertices[] = {
-		// Base vertices (y = -0.5) with UV
-		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  // front-left
-		 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,  // front-right
-		 0.5f, -0.5f, -0.5f,  1.0f, 1.0f,  // back-right
-		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  // back-left
-
-		// Apex (top point) with UV centered
-		 0.0f,  0.5f,  0.0f,  0.5f, 0.5f   // top
-	};
-
-	// Indices for the pyramid
-	unsigned int indices[] = {
-		// Base (2 triangles)
-		0, 1, 2,
-		0, 2, 3,
-
-		// Front face
-		0, 1, 4,
-
-		// Right face
-		1, 2, 4,
-
-		// Back face
-		2, 3, 4,
-
-		// Left face
-		3, 0, 4
-	};
-
-	// Create VAO, VBO and IBO
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-	glGenBuffers(1, &IBO);
-
-	// Bind Vertex Array Object
-	glBindVertexArray(VAO);
-
-	// Copy vertices to buffer VBO
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-	// Copy vertices to buffer IBO
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-	// Config vertices attributes
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-
-	LOG("Pyramid created successfully");
-
-	LOG("Creating default checker texture");
-
-	// Texture data 8x8 pixels with 4 components: RGBA
-	const int texWidth = 8;
-	const int texHeight = 8;
-	GLubyte checkerTexture[texWidth * texHeight * 4];
-	for (int y = 0; y < texHeight; y++) {
-		for (int x = 0; x < texWidth; x++) {
-			int i = (y * texWidth + x) * 4;
-			// Patrón de ajedrez
-			bool isBlack = ((x % 2) == 0) != ((y % 2) == 0);
-			checkerTexture[i + 0] = isBlack ? 0 : 255;   // R
-			checkerTexture[i + 1] = isBlack ? 0 : 255;   // G
-			checkerTexture[i + 2] = isBlack ? 0 : 255;   // B
-			checkerTexture[i + 3] = 255;                 // A
-		}
-	}
-
-	// Generate and link the texture
-	glGenTextures(1, &textureID);
-	glBindTexture(GL_TEXTURE_2D, textureID);
-
-	// Configure texture parameters
-	// GL_NEAREST is the checkered pattern
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	// GL_REPEAT causes the texture to repeat if the UVs > 1
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-	// Upload texture data to the GPU
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, checkerTexture);
-
-	// Disconnect the texture
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	LOG("Default texture created successfully");
 
 	return true;
 }
@@ -290,40 +192,72 @@ bool Render::Update(float dt)
 	{
 		ProcessKeyboardMovement(dt);
 	}
-	shader->Use();
 
-
-	glm::mat4 model = glm::mat4(1.0f);
-
-
+	//glm::mat4 model = glm::mat4(1.0f);
+	// Creo que esta linea ya no hace falta
 	glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-
 	// Create perspective projection
 	int width, height;
 	Application::GetInstance().window->GetWindowSize(width, height);
 	glm::mat4 projection = glm::perspective(glm::radians(cameraFOV), (float)width / (float)height, 0.1f, 100.0f);
 
-	// Send matrices to shader
-	shader->SetMat4("model", model);
+	shader->Use();
+
+	// Send matrix to shader
+	shader->Use();
 	shader->SetMat4("view", view);
 	shader->SetMat4("projection", projection);
 
-	// Before drawing, activate the texture 0
-	glActiveTexture(GL_TEXTURE0);
-	// Link the texture 
-	glBindTexture(GL_TEXTURE_2D, textureID);
-	// Inform shader to use the texture 0
-	shader->SetInt("tex1", 0);
+	// Obtain the rootObject of the scene
+	std::shared_ptr<GameObject> root = Application::GetInstance().scene->rootObject;
 
-	// Draw the pyramid
-	glBindVertexArray(VAO);
-	// Draw using the indices of IBO which are linked to VAO
-	glDrawElements(GL_TRIANGLES, 18, GL_UNSIGNED_INT, 0);
-
-	glBindVertexArray(0); // Unlink VAO
-	glBindTexture(GL_TEXTURE_2D, 0);
+	// Start the process to draw recursive
+	if (root != nullptr)
+	{
+		DrawGameObject(root.get());
+	}
 
 	return true;
+}
+
+void Render::DrawGameObject(GameObject* go)
+{
+	if (go == nullptr || !go->IsActive())
+	{
+		return;
+	}
+
+	// Obtain the needed components
+	ComponentTransform* transform = go->GetComponent<ComponentTransform>();
+	ComponentMesh* mesh = go->GetComponent<ComponentMesh>();
+	ComponentTexture* texture = go->GetComponent<ComponentTexture>();
+
+	// Only draw if the object has all the necesary
+	if (mesh != nullptr && texture != nullptr && transform != nullptr)
+	{
+		// 1. Obtain the Model Matrix of the Component Transform
+		glm::mat4 model = transform->GetModelMatrix();
+
+		// 2. Sended to the shader
+		shader->SetMat4("model", model);
+
+		// 3. Link the texture
+		glActiveTexture(GL_TEXTURE0);
+		texture->Bind();
+		shader->SetInt("tex1", 0);
+
+		// 4. Draw the mesh
+		mesh->Draw();
+
+		// 5. Unlink the texture
+		texture->Unbind();
+	}
+
+	// 6. Repeat the process for all the Childrens
+	for (const auto& child : go->GetChildren())
+	{
+		DrawGameObject(child.get());
+	}
 }
 
 bool Render::PostUpdate()
@@ -336,10 +270,8 @@ bool Render::PostUpdate()
 bool Render::CleanUp()
 {
 	LOG("Destroying SDL render");
-	glDeleteVertexArrays(1, &VAO);
-	glDeleteBuffers(1, &VBO);
-	glDeleteBuffers(1, &IBO);
-	glDeleteTextures(1, &textureID);
+	// The shader is from this class so we have to CleanUp
+	shader.reset();
 	return true;
 }
 
