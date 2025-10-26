@@ -11,6 +11,9 @@
 #include "ComponentMesh.h"
 #include "ComponentTexture.h"
 
+#include "imgui.h"
+#include "imgui_impl_opengl3.h"
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -139,6 +142,13 @@ bool Render::PreUpdate()
 	);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	ImGuiIO& io = ImGui::GetIO();
+	if (io.WantCaptureMouse)
+	{
+		isRightDragging = false;
+		return true;
+	}
+
 	// Mouse control for rotation
 	Input* input = Application::GetInstance().input.get();
 
@@ -186,6 +196,12 @@ bool Render::PreUpdate()
 bool Render::Update(float dt)
 {
 	Input* input = Application::GetInstance().input.get();
+	ImGuiIO& io = ImGui::GetIO();
+
+	if (isRightDragging && !io.WantCaptureKeyboard)
+	{
+		ProcessKeyboardMovement(dt);
+	}
 
 	// Only allow WASD movement when the right button is pressed
 	if (isRightDragging)
@@ -262,6 +278,9 @@ void Render::DrawGameObject(GameObject* go)
 
 bool Render::PostUpdate()
 {
+	//Draw the inferface of ImGui in screen
+	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
 	SDL_GL_SwapWindow(Application::GetInstance().window->window);
 	return true;
 }

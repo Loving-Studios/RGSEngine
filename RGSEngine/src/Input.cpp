@@ -3,6 +3,8 @@
 #include "Window.h"
 #include "Log.h"
 
+#include "imgui_impl_sdl3.h"
+
 #define MAX_KEYS 300
 
 Input::Input() : Module()
@@ -84,6 +86,7 @@ bool Input::PreUpdate()
 
 	while (SDL_PollEvent(&event))
 	{
+		ImGui_ImplSDL3_ProcessEvent(&event);
 		switch (event.type)
 		{
 		case SDL_EVENT_QUIT:

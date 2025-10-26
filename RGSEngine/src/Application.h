@@ -11,6 +11,7 @@ class Window;
 class Input;
 class Render;
 class ModuleScene;
+class ModuleEditor;
 class LoadFiles;
 
 class Application
@@ -80,6 +81,7 @@ public:
 	std::shared_ptr<Input> input;
 	std::shared_ptr<Render> render;
 	std::shared_ptr<ModuleScene> scene;
+	std::shared_ptr<ModuleEditor> editor;
 
 private:
 	float dt;

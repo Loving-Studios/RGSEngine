@@ -6,6 +6,7 @@
 #include "Input.h"
 #include "Render.h"
 #include "ModuleScene.h"
+#include "ModuleEditor.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -20,6 +21,7 @@ Application::Application() {
     window = std::make_shared<Window>();
     input = std::make_shared<Input>();
     scene = std::make_shared<ModuleScene>();
+    editor = std::make_shared<ModuleEditor>();
     render = std::make_shared<Render>();
 
     // Ordered for awake / Start / Update
@@ -27,6 +29,7 @@ Application::Application() {
     AddModule(std::static_pointer_cast<Module>(window));
     AddModule(std::static_pointer_cast<Module>(input));
     AddModule(std::static_pointer_cast<Module>(scene));
+    AddModule(std::static_pointer_cast<Module>(editor));
     AddModule(std::static_pointer_cast<Module>(render));
 
     // Render last 

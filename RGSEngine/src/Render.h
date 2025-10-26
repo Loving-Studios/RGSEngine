@@ -40,6 +40,13 @@ public:
 public:
 	SDL_Color background;
 
+	//Camera movement speed
+	float cameraSpeed;
+	float cameraSensitivity;
+	float cameraFOV;      // Field of view
+
+	void ProcessKeyboardMovement(float dt);
+
 private:
 
 	// Shader
@@ -55,10 +62,7 @@ private:
 	float cameraYaw;      // Rotation horizontal (Y)
 	float cameraPitch;   // Rotation vertical (X)
 
-	//Camera movement speed
-	float cameraSpeed;
-	float cameraSensitivity;
-	float cameraFOV;      // Field of view
+
 
 	// Mouse control 
 	bool isRightDragging;
@@ -67,7 +71,7 @@ private:
 
 	//Helper functions
 	void UpdateCameraVectors();
-	void ProcessKeyboardMovement(float dt);
+
 	void ProcessMouseFreeLook(int deltaX, int deltaY);
 
 	void DrawGameObject(GameObject* go);

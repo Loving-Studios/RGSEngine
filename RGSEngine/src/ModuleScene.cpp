@@ -56,15 +56,15 @@ void ModuleScene::CreateTestPyramid()
 {
     LOG("Creating Test Pyramid GameObject");
 
-    // 1. Create the GameObject
+    // Creation of the GameObject
     // Used the std::make_shared to create a smart pointer
     auto pyramidGO = std::make_shared<GameObject>("TestPyramid");
 
-    // 2. Add component Transform, always the first one
+    // Adding component Transform, always the first one
     auto transform = std::make_shared<ComponentTransform>(pyramidGO.get());
     pyramidGO->AddComponent(transform);
 
-    // 3. Add Mesh component
+    // Adding Mesh component
     auto mesh = std::make_shared<ComponentMesh>(pyramidGO.get());
 
     // --- Logic of VBO/IBO ---
@@ -110,7 +110,7 @@ void ModuleScene::CreateTestPyramid()
 
     pyramidGO->AddComponent(mesh);
 
-    // 4. Add Texture component
+    // Adding Texture component
     auto texture = std::make_shared<ComponentTexture>(pyramidGO.get());
 
     // --- Texture Logic ---
@@ -141,6 +141,6 @@ void ModuleScene::CreateTestPyramid()
 
     pyramidGO->AddComponent(texture);
 
-    // 5. Add the new GameObject as son ofd the rootObject
+    // Adding the new GameObject as son of the rootObject
     rootObject->AddChild(pyramidGO);
 }

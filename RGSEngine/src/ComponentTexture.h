@@ -27,7 +27,7 @@ public:
         }
     }
 
-    // Función para desvincular
+    // Function to unlink
     void Unbind()
     {
         glBindTexture(GL_TEXTURE_2D, 0);
