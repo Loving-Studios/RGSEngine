@@ -85,6 +85,19 @@ bool ModuleEditor::Update(float dt)
         fpsLog.push_back(1.0f / dt);
     }
 
+
+    // --- FOCUS ON SELECTED GAMEOBJECT ---
+    Input* input = Application::GetInstance().input.get();
+
+    // Process F key if an object is selected
+    if (selectedGameObject != nullptr)
+    {
+        if (input->GetKey(SDL_SCANCODE_F) == KEY_DOWN)
+        {
+            Application::GetInstance().render->FocusOnGameObject(selectedGameObject);
+        }
+    }
+
     // --- DRAW THE INTERFACE ---
     // Configuration of the window that occupies the entire main screen
     ImGuiViewport* viewport = ImGui::GetMainViewport();

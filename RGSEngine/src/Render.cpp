@@ -304,6 +304,44 @@ void Render::SetBackgroundColor(SDL_Color color)
 	background = color;
 }
 
+void Render::FocusOnGameObject(GameObject* go)
+{
+	if (go == nullptr)
+		return;
+
+	ComponentTransform* transform = go->GetComponent<ComponentTransform>();
+	if (transform == nullptr)
+		return;
+
+	// Get the object position
+	glm::vec3 targetPos = transform->position;
+
+	//Calculate camera distance based on object size
+	float objectSize = glm::max(glm::max(transform->scale.x, transform->scale.y), transform->scale.z);
+	float distance = objectSize * 3.0f; // Multiplicador para dar espacio visual
+
+	// Minimum distance
+
+	if (distance < 2.0f)
+		distance = 2.0f;
+
+	// Position the camera at a distance from the object in the current viewing direction
+	cameraPos = targetPos - (cameraFront * distance);
+
+	// Calculate the vector from camera to object
+	glm::vec3 direction = glm::normalize(targetPos - cameraPos);
+
+	// Calculate yaw and pitch from this direction vector
+	cameraYaw = glm::degrees(atan2(direction.z, direction.x));
+	cameraPitch = glm::degrees(asin(direction.y));
+
+
+	UpdateCameraVectors();
+
+	LOG("Camera focused on: %s at position (%.2f, %.2f, %.2f)",
+		go->GetName().c_str(), targetPos.x, targetPos.y, targetPos.z);
+}
+
 //void Render::SetViewPort(const SDL_Rect& rect)
 //{
 //	SDL_SetRenderViewport(renderer, &rect);

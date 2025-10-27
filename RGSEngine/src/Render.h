@@ -46,7 +46,7 @@ public:
 	float cameraFOV;      // Field of view
 
 	void ProcessKeyboardMovement(float dt);
-
+	void FocusOnGameObject(GameObject* go);
 private:
 
 	// Shader
