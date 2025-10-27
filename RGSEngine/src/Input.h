@@ -63,6 +63,10 @@ public:
 	void GetMouseMotion(int& x, int& y);
 	int GetMouseWheel() const;
 
+	// Check modifier keys
+	bool IsShiftPressed() const;
+	bool IsAltPressed() const;
+
 private:
 	bool windowEvents[WE_COUNT];
 	KeyState* keyboard;

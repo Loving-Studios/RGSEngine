@@ -164,3 +164,15 @@ int Input::GetMouseWheel() const
 {
 	return mouseWheelY;
 }
+
+bool Input::IsShiftPressed() const
+{
+	return (keyboard[SDL_SCANCODE_LSHIFT] == KEY_REPEAT || keyboard[SDL_SCANCODE_LSHIFT] == KEY_DOWN ||
+		keyboard[SDL_SCANCODE_RSHIFT] == KEY_REPEAT || keyboard[SDL_SCANCODE_RSHIFT] == KEY_DOWN);
+}
+
+bool Input::IsAltPressed() const
+{
+	return (keyboard[SDL_SCANCODE_LALT] == KEY_REPEAT || keyboard[SDL_SCANCODE_LALT] == KEY_DOWN ||
+		keyboard[SDL_SCANCODE_RALT] == KEY_REPEAT || keyboard[SDL_SCANCODE_RALT] == KEY_DOWN);
+}

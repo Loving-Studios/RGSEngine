@@ -107,6 +107,11 @@ void Render::ProcessKeyboardMovement(float dt)
 
 	float speed = cameraSpeed * dt;
 
+	if (input->IsShiftPressed())
+	{
+		speed *= 2.0f;
+	}
+
 	// WASD movement
 	if (input->GetKey(SDL_SCANCODE_W))
 		cameraPos += cameraFront * speed;
