@@ -97,6 +97,13 @@ bool ModuleEditor::Update(float dt)
         {
             Application::GetInstance().render->FocusOnGameObject(selectedGameObject);
         }
+        // Set object as orbit target when selected
+        Application::GetInstance().render->SetOrbitTarget(selectedGameObject);
+    }
+    else
+    {
+        // If nothing is selected, clear the orbit target
+        Application::GetInstance().render->SetOrbitTarget(nullptr);
     }
 
     // --- DRAW THE INTERFACE ---

@@ -42,8 +42,16 @@ Render::Render() : Module()
 
 	isRightDragging = false;
 
+	// Initializa orbit
+	isOrbiting = false;
+	orbitTarget = nullptr;
+	orbitCenter = glm::vec3(0.0f);
+	orbitDistance = 0.0f;
+
 	lastMouseX = 0;
 	lastMouseY = 0;
+	orbitLastMouseX = 0;
+	orbitLastMouseY = 0;
 }
 
 // Destructor
@@ -136,6 +144,38 @@ void Render::ProcessMouseFreeLook(int deltaX, int deltaY)
 
 	UpdateCameraVectors();
 }
+
+void Render::ProcessMouseOrbit(int deltaX, int deltaY)
+{
+	// Update rotation angles based on mouse movement
+	cameraYaw += deltaX * cameraSensitivity;
+	cameraPitch -= deltaY * cameraSensitivity;
+
+	// Limit pitch to avoid flip
+	if (cameraPitch > 89.0f)
+		cameraPitch = 89.0f;
+	if (cameraPitch < -89.0f)
+		cameraPitch = -89.0f;
+
+	// Calculate the new position of the camera orbiting around the center
+	glm::vec3 offset;
+	offset.x = cos(glm::radians(cameraYaw)) * cos(glm::radians(cameraPitch));
+	offset.y = sin(glm::radians(cameraPitch));
+	offset.z = sin(glm::radians(cameraYaw)) * cos(glm::radians(cameraPitch));
+
+	offset = glm::normalize(offset);
+
+	// Position the camera at orbit distance from center
+	cameraPos = orbitCenter - (offset * orbitDistance);
+
+	// Aim for the center
+	cameraFront = glm::normalize(orbitCenter - cameraPos);
+
+	// Update the camera vectors
+	cameraRight = glm::normalize(glm::cross(cameraFront, glm::vec3(0.0f, 1.0f, 0.0f)));
+	cameraUp = glm::normalize(glm::cross(cameraRight, cameraFront));
+}
+
 // Called each loop iteration
 bool Render::PreUpdate()
 {
@@ -156,6 +196,42 @@ bool Render::PreUpdate()
 
 	// Mouse control for rotation
 	Input* input = Application::GetInstance().input.get();
+
+	if (input->IsAltPressed() && orbitTarget != nullptr)
+	{
+		if (input->GetMouseButtonDown(SDL_BUTTON_LEFT) == KEY_DOWN)
+		{
+			isOrbiting = true;
+			input->GetMousePosition(orbitLastMouseX, orbitLastMouseY);
+
+			// Configurar el centro de órbita y la distancia
+			ComponentTransform* transform = orbitTarget->GetComponent<ComponentTransform>();
+			if (transform != nullptr)
+			{
+				orbitCenter = transform->position;
+				orbitDistance = glm::length(cameraPos - orbitCenter);
+			}
+		}
+
+		if (input->GetMouseButtonDown(SDL_BUTTON_LEFT) == KEY_UP)
+		{
+			isOrbiting = false;
+		}
+
+		if (isOrbiting && input->GetMouseButtonDown(SDL_BUTTON_LEFT) == KEY_REPEAT)
+		{
+			int currentMouseX, currentMouseY;
+			input->GetMousePosition(currentMouseX, currentMouseY);
+
+			int deltaX = currentMouseX - orbitLastMouseX;
+			int deltaY = currentMouseY - orbitLastMouseY;
+
+			ProcessMouseOrbit(deltaX, deltaY);
+
+			orbitLastMouseX = currentMouseX;
+			orbitLastMouseY = currentMouseY;
+		}
+	}
 
 	if (input->GetMouseButtonDown(SDL_BUTTON_RIGHT) == KEY_DOWN)
 	{
@@ -203,7 +279,7 @@ bool Render::Update(float dt)
 	Input* input = Application::GetInstance().input.get();
 	ImGuiIO& io = ImGui::GetIO();
 
-	if (isRightDragging && !io.WantCaptureKeyboard)
+	if (isRightDragging && !isOrbiting && !io.WantCaptureKeyboard)
 	{
 		ProcessKeyboardMovement(dt);
 	}
@@ -302,6 +378,11 @@ bool Render::CleanUp()
 void Render::SetBackgroundColor(SDL_Color color)
 {
 	background = color;
+}
+
+void Render::SetOrbitTarget(GameObject* go)
+{
+	orbitTarget = go;
 }
 
 void Render::FocusOnGameObject(GameObject* go)

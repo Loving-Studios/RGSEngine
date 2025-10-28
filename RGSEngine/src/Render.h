@@ -47,6 +47,11 @@ public:
 
 	void ProcessKeyboardMovement(float dt);
 	void FocusOnGameObject(GameObject* go);
+
+	// Orbit mode
+	void SetOrbitTarget(GameObject* go);
+	GameObject* GetOrbitTarget() const { return orbitTarget; }
+
 private:
 
 	// Shader
@@ -62,7 +67,13 @@ private:
 	float cameraYaw;      // Rotation horizontal (Y)
 	float cameraPitch;   // Rotation vertical (X)
 
-
+	// Orbit mode
+	bool isOrbiting;
+	GameObject* orbitTarget;
+	glm::vec3 orbitCenter;
+	float orbitDistance;
+	int orbitLastMouseX;
+	int orbitLastMouseY;
 
 	// Mouse control 
 	bool isRightDragging;
@@ -73,6 +84,7 @@ private:
 	void UpdateCameraVectors();
 
 	void ProcessMouseFreeLook(int deltaX, int deltaY);
+	void ProcessMouseOrbit(int deltaX, int deltaY);
 
 	void DrawGameObject(GameObject* go);
 };
