@@ -18,6 +18,43 @@ public:
         CleanUp();
     }
 
+    void LoadMesh(float* vertices, unsigned int num_vertices,
+        unsigned int* indices, unsigned int num_indices,
+        float* texCoords = nullptr, float* normals = nullptr)
+    {
+        // Limpiar buffers anteriores si existen
+        CleanUp();
+
+        indexCount = num_indices;
+
+        // Crear VAO
+        glGenVertexArrays(1, &VAO);
+        glBindVertexArray(VAO);
+
+        // Crear VBO para vértices
+        glGenBuffers(1, &VBO);
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * num_vertices * 3, vertices, GL_STATIC_DRAW);
+
+        // Atributo 0: posiciones (x, y, z)
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+
+        // TODO: Añadir texCoords y normals cuando sea necesario
+        // Por ahora solo cargamos posiciones
+
+        // Crear IBO para índices
+        glGenBuffers(1, &IBO);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * num_indices, indices, GL_STATIC_DRAW);
+
+        // Desvincular VAO
+        glBindVertexArray(0);
+
+        LOG("Mesh loaded to GPU: VAO=%d, VBO=%d, IBO=%d, Vertices=%d, Indices=%d",
+            VAO, VBO, IBO, num_vertices, indexCount);
+    }
+
     // Function to draw the mesh
     void Draw()
     {

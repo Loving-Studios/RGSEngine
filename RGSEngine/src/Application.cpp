@@ -5,6 +5,7 @@
 #include "Window.h"
 #include "Input.h"
 #include "Render.h"
+#include "LoadFiles.h"
 #include "ModuleScene.h"
 #include "ModuleEditor.h"
 
@@ -23,6 +24,7 @@ Application::Application() {
     scene = std::make_shared<ModuleScene>();
     editor = std::make_shared<ModuleEditor>();
     render = std::make_shared<Render>();
+    loadFiles = std::make_shared<LoadFiles>();
 
     // Ordered for awake / Start / Update
     // Reverse order of CleanUp
@@ -31,6 +33,7 @@ Application::Application() {
     AddModule(std::static_pointer_cast<Module>(scene));
     AddModule(std::static_pointer_cast<Module>(editor));
     AddModule(std::static_pointer_cast<Module>(render));
+    AddModule(std::static_pointer_cast<Module>(loadFiles));
 
     // Render last 
 

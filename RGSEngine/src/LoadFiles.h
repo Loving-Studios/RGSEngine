@@ -3,33 +3,55 @@
 #include "assimp/cimport.h"
 #include "assimp/scene.h"
 #include "assimp/postprocess.h"
+#include <vector>
+#include <memory>
+#include <string>
+
+class GameObject;
+class ComponentMesh;
 
 class LoadFiles : public Module
 {
 public:
+    LoadFiles();
+    virtual ~LoadFiles();
 
-	LoadFiles();
+    bool Awake();
+    bool Start();
+    bool PreUpdate();
+    bool Update(float dt);
+    bool PostUpdate();
+    bool CleanUp();
 
-	// Destructor
-	virtual ~LoadFiles();
+    std::shared_ptr<GameObject> LoadFBX(const char* file_path);
+    bool LoadTexture(const char* file_path);
+    void HandleDropFile(const char* file_path);
 
-	// Called before render is available
-	bool Awake();
+private:
+    struct MeshData
+    {
+        unsigned int num_indices = 0;
+        unsigned int* indices = nullptr;
 
-	// Called before the first frame
-	bool Start();
+        unsigned int num_vertices = 0;
+        float* vertices = nullptr;
 
-	// Called before each loop iteration
-	bool PreUpdate();
+        float* texCoords = nullptr;
+        bool hasTexCoords = false;
 
-	// Called each loop iteration
-	bool Update(float dt);
+        float* normals = nullptr;
+        bool hasNormals = false;
 
-	// Called after each loop iteration
-	bool PostUpdate();
+        float* colors = nullptr;
+        bool hasColors = false;
+    };
 
-	// Called before quitting
-	bool CleanUp();
-public:
+    void ProcessMesh(aiMesh* aiMesh, MeshData& meshData);
+    std::shared_ptr<GameObject> CreateGameObjectFromMesh(const MeshData& meshData, const char* name);
+    std::shared_ptr<GameObject> ProcessNode(aiNode* node, const aiScene* scene, std::shared_ptr<GameObject> parent, const std::string& fbxDirectory);
+
+    void LoadMaterialTextures(const aiScene* scene, aiMesh* mesh, std::shared_ptr<GameObject> gameObject, const std::string& fbxDirectory);
+    unsigned int LoadTextureFromFile(const char* file_path);
+
+    aiLogStream stream;
 };
-

@@ -51,6 +51,15 @@ bool ModuleScene::CleanUp()
     return true;
 }
 
+void ModuleScene::AddGameObject(std::shared_ptr<GameObject> gameObject)
+{
+    if (gameObject != nullptr && rootObject != nullptr)
+    {
+        rootObject->AddChild(gameObject);
+        LOG("GameObject '%s' added to scene", gameObject->GetName().c_str());
+    }
+}
+
 // --- Key Function ---
 void ModuleScene::CreateTestPyramid()
 {
