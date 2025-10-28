@@ -1,4 +1,5 @@
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_version.h>
 #include <glad/glad.h>
 
 #include "ModuleEditor.h"
@@ -483,25 +484,28 @@ void ModuleEditor::DrawConfigurationWindow()
         }
     }
 
-    // Hardware and software ---
+    // --- Hardware and software ---
     if (ImGui::CollapsingHeader("Hardware & Software Versions"))
     {
-        //SDL_version sdl_ver;
-        //SDL_GetVersion(&sdl_ver);
-        //ImGui::Text("SDL3 Version: %d.%d.%d", sdl_ver.major, sdl_ver.minor, sdl_ver.patch);
 
-        //ImGui::Text("OpenGL Version: %s", glGetString(GL_VERSION));
-        //ImGui::Text("DevIL Version: %d", ilGetInteger(IL_VERSION_NUM));
-        //ImGui::Text("ImGui Version: %s", ImGui::GetVersion());
+        const int compiled = SDL_VERSION;  /* hardcoded number from SDL headers */
+        const int linked = SDL_GetVersion();  /* reported by linked SDL library */
 
-        //ImGui::Separator();
+        ImGui::Text("SDL3 Compiled Version: %d.%d.%d", SDL_VERSIONNUM_MAJOR(compiled), SDL_VERSIONNUM_MINOR(compiled), SDL_VERSIONNUM_MICRO(compiled));
+        ImGui::Text("SDL3 Linked Version: %d.%d.%d", SDL_VERSIONNUM_MAJOR(linked), SDL_VERSIONNUM_MINOR(linked), SDL_VERSIONNUM_MICRO(linked));
 
-        //ImGui::Text("CPU Cores: %d", SDL_GetNumLogicalCPUCores());
-        //ImGui::Text("RAM: %.2f GB", (float)SDL_GetSystemRAMMegabytes() / 1024.0f);
+        ImGui::Text("OpenGL Version: %s", glGetString(GL_VERSION));
+        ImGui::Text("DevIL Version: %d", ilGetInteger(IL_VERSION_NUM));
+        ImGui::Text("ImGui Version: %s", ImGui::GetVersion());
 
-        //ImGui::Separator();
-        //ImGui::Text("GPU Vendor: %s", glGetString(GL_VENDOR));
-        //ImGui::Text("GPU Renderer: %s", glGetString(GL_RENDERER));
+        ImGui::Separator();
+
+        ImGui::Text("CPU Cores: %d", SDL_GetNumLogicalCPUCores());
+        ImGui::Text("RAM: %.2f GB", (int)SDL_GetSystemRAM() / 1024.0f);
+
+        ImGui::Separator();
+        ImGui::Text("GPU Vendor: %s", glGetString(GL_VENDOR));
+        ImGui::Text("GPU Renderer: %s", glGetString(GL_RENDERER));
     }
 
     ImGui::End();
