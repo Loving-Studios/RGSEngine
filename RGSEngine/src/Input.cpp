@@ -143,7 +143,7 @@ bool Input::PreUpdate()
 			Application::GetInstance().loadFiles->HandleDropFile(dropped_filedir);
 
 			// Liberar la memoria asignada por SDL
-			//SDL_free(dropped_filedir);
+			//SDL_free(dropped_filedir);//no funciona
 		}
 		break;
 

@@ -31,9 +31,20 @@ bool LoadFiles::Awake()
     LOG("Loading LoadFiles module");
 
     // Inicializar DevIL
-    /*ilInit();
+    ilInit();
     iluInit();
-    LOG("DevIL initialized");*/
+
+    // Verificar errores
+    ILenum error = ilGetError();
+    if (error != IL_NO_ERROR)
+    {
+        LOG("Error initializing DevIL: 0x%x", error);
+        // No retornar false, solo advertir
+    }
+    else
+    {
+        LOG("DevIL initialized successfully");
+    }
 
     return true;
 }
@@ -96,7 +107,7 @@ void LoadFiles::HandleDropFile(const char* file_path)
     else if (extension == "dds" || extension == "png" || extension == "jpg" || extension == "jpeg")
     {
         LOG("Detected texture file (%s), loading...", extension.c_str());
-        LoadTexture(file_path);
+       /* LoadTexture(file_path);*/
     }
     else
     {

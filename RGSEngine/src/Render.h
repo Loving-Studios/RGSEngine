@@ -52,6 +52,8 @@ private:
 	// Shader
 	std::unique_ptr<Shader> shader;
 
+	unsigned int defaultCheckerTexture;
+
 	// Camera propieties 
 
 	glm::vec3 cameraPos; // Camera position
@@ -75,5 +77,7 @@ private:
 	void ProcessMouseFreeLook(int deltaX, int deltaY);
 
 	void DrawGameObject(GameObject* go);
+
+	void CreateDefaultCheckerTexture();
 };
 

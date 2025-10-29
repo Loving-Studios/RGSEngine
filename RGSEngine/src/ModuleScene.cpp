@@ -25,7 +25,7 @@ bool ModuleScene::Start()
     rootObject = std::make_shared<GameObject>("SceneRoot");
 
     // Object Pyramid test
-    CreateTestPyramid();
+   CreateTestPyramid();
 
     return true;
 }
