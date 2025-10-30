@@ -470,23 +470,44 @@ void ModuleEditor::DrawConfigurationWindow()
 
         if (ImGui::TreeNode("Render"))
         {
-            ImGui::DragFloat("Camera Speed", &render->cameraSpeed, 0.1f);
-            ImGui::DragFloat("Camera Sensitivity", &render->cameraSensitivity, 0.01f);
+            ImGui::SliderFloat("Camera Speed", &render->cameraSpeed, 0.1f, 10.0f);
+            ImGui::SliderFloat("Camera Sensitivity", &render->cameraSensitivity, 0.01f, 1.0f);
             ImGui::SliderFloat("Camera FOV", &render->cameraFOV, 1.0f, 120.0f);
             ImGui::TreePop();
         }
         if (ImGui::TreeNode("Window"))
         {
+            bool fs = window->fullscreen;
+            if (ImGui::Checkbox("Fullscreen", &fs))
+            {
+                window->SetFullscreen(fs);
+            }
+
+            ImGui::BeginDisabled(fs);
+
+            ImGui::SameLine();
+            bool bd = window->borderless;
+            if (ImGui::Checkbox("Borderless", &bd))
+            {
+                window->SetBorderless(bd);
+            }
+
+            ImGui::SameLine();
+            bool rs = window->resizable;
+            if (ImGui::Checkbox("Resizable", &rs))
+            {
+                window->SetResizable(rs);
+            }
+
+            if (ImGui::Button("Reset Size"))
+            {
+                window->ResetWindowSize();
+            }
+
+            ImGui::EndDisabled();
+
             ImGui::Text("Width: %d", window->width);
             ImGui::Text("Height: %d", window->height);
-            ImGui::TreePop();
-        }
-        if (ImGui::TreeNode("Input"))
-        {
-            int mouseX, mouseY;
-            input->GetMousePosition(mouseX, mouseY);
-            ImGui::Text("Mouse X: %d", mouseX);
-            ImGui::Text("Mouse Y: %d", mouseY);
             ImGui::TreePop();
         }
     }

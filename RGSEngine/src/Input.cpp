@@ -92,7 +92,9 @@ bool Input::PreUpdate()
 		case SDL_EVENT_QUIT:
 			windowEvents[WE_QUIT] = true;
 			break;
-
+		case SDL_EVENT_WINDOW_RESIZED:
+			Application::GetInstance().window->OnResize(event.window.data1, event.window.data2);
+			break;
 		case SDL_EVENT_WINDOW_HIDDEN:
 		case SDL_EVENT_WINDOW_MINIMIZED:
 		case SDL_EVENT_WINDOW_FOCUS_LOST:

@@ -4,6 +4,7 @@
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl3.h"
+#include <glad/glad.h>
 
 Window::Window() : Module()
 {
@@ -31,19 +32,20 @@ bool Window::Awake()
 	{
 		// Create window
 		Uint32 flags = 0;
-		bool fullscreen = false;
-		bool borderless = false;
-		bool resizable = false;
 		bool fullscreen_window = false;
 
-		// TODO Get the values from the config file
-		width = 1280;
-		height = 720;
+		// Get the values from .h
+		width = DEFAULT_WIDTH;
+		height = DEFAULT_HEIGHT;
 		scale = 1;
 
-		//if (fullscreen == true)        flags |= SDL_WINDOW_FULLSCREEN;
-		//if (borderless == true)        flags |= SDL_WINDOW_BORDERLESS;
-		//if (resizable == true)         flags |= SDL_WINDOW_RESIZABLE;
+		fullscreen = false;
+		borderless = false;
+		resizable = true;
+
+		if (fullscreen == true)        flags |= SDL_WINDOW_FULLSCREEN;
+		if (borderless == true)        flags |= SDL_WINDOW_BORDERLESS;
+		if (resizable == true)         flags |= SDL_WINDOW_RESIZABLE;
 		flags |= SDL_WINDOW_OPENGL;
 		
 
@@ -125,4 +127,45 @@ void Window::GetWindowSize(int& width, int& height) const
 int Window::GetScale() const
 {
 	return scale;
+}
+
+void Window::SetFullscreen(bool enable)
+{
+	if (fullscreen != enable)
+	{
+		fullscreen = enable;
+		SDL_SetWindowFullscreen(window, fullscreen ? true : false);
+		SDL_GetWindowSize(window, &width, &height);
+	}
+}
+
+void Window::SetBorderless(bool enable)
+{
+	if (borderless != enable)
+	{
+		borderless = enable;
+		SDL_SetWindowBordered(window, borderless ? true : false);
+	}
+}
+
+void Window::SetResizable(bool enable)
+{
+	if (resizable != enable)
+	{
+		resizable = enable;
+		SDL_SetWindowResizable(window, resizable ? true : false);
+	}
+}
+
+void Window::OnResize(int newWidth, int newHeight)
+{
+	width = newWidth;
+	height = newHeight;
+
+	glViewport(0, 0, width, height);
+}
+
+void Window::ResetWindowSize()
+{
+	SDL_SetWindowSize(window, DEFAULT_WIDTH, DEFAULT_HEIGHT);
 }
