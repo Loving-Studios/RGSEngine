@@ -58,6 +58,18 @@ bool ModuleEditor::Start()
     ImGui_ImplSDL3_InitForOpenGL(window, glContext);
     ImGui_ImplOpenGL3_Init("#version 460"); // Force to use the same version of the shader
 
+    if (strstr((const char*)glGetString(GL_VENDOR), "NVIDIA"))
+    {
+        // GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX 0x9048
+        glGetIntegerv(0x9048, &vram_budget_mb);
+        // GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX 0x9049
+        glGetIntegerv(0x9049, &vram_available_mb);
+
+        // Los valores vienen en KB, los pasamos a MB
+        vram_budget_mb /= 1024;
+        vram_available_mb /= 1024;
+    }
+
     return true;
 }
 
@@ -527,13 +539,33 @@ void ModuleEditor::DrawConfigurationWindow()
         ImGui::Text("ImGui Version: %s", ImGui::GetVersion());
 
         ImGui::Separator();
-
+        ImGui::Text("Hardware:");
         ImGui::Text("CPU Cores: %d", SDL_GetNumLogicalCPUCores());
-        ImGui::Text("RAM: %.2f GB", (int)SDL_GetSystemRAM() / 1024.0f);
+        ImGui::Text("System RAM: %.2f GB", (int)SDL_GetSystemRAM() / 1024.0f);
 
         ImGui::Separator();
         ImGui::Text("GPU Vendor: %s", glGetString(GL_VENDOR));
         ImGui::Text("GPU Renderer: %s", glGetString(GL_RENDERER));
+
+        if (vram_budget_mb > 0)
+        {
+            // Calculate the actual usage
+            int vram_usage_mb = vram_budget_mb - vram_available_mb;
+
+            ImGui::Text("VRAM Budget: %d MB", vram_budget_mb);
+            ImGui::Text("VRAM Available: %d MB", vram_available_mb);
+            ImGui::Text("VRAM Usage (Aprox.): %d MB", vram_usage_mb);
+
+            // Usage progress bar VRAM
+            float usage_percentage = (float)vram_usage_mb / (float)vram_budget_mb;
+            char bar_label[64];
+            sprintf_s(bar_label, "%d MB / %d MB", vram_usage_mb, vram_budget_mb);
+            ImGui::ProgressBar(usage_percentage, ImVec2(0.f, 0.f), bar_label);
+        }
+        else
+        {
+            ImGui::Text("VRAM Info: Not available non-NVIDIA card detected");
+        }
     }
 
     ImGui::End();

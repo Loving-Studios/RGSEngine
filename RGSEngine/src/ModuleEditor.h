@@ -50,4 +50,7 @@ private:
 
     // The GameObject selected
     GameObject* selectedGameObject = nullptr;
+
+    int vram_budget_mb = 0;    // VRAM Total
+    int vram_available_mb = 0; // VRAM Available
 };
