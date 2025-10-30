@@ -242,6 +242,16 @@ bool Render::Update(float dt)
 		DrawGameObject(root.get());
 	}
 
+	static bool loggedOnce = false;
+	if (!loggedOnce)
+	{
+		LOG("=== CAMERA INFO ===");
+		LOG("Camera position: (%.2f, %.2f, %.2f)", cameraPos.x, cameraPos.y, cameraPos.z);
+		LOG("Camera front: (%.2f, %.2f, %.2f)", cameraFront.x, cameraFront.y, cameraFront.z);
+		LOG("Camera FOV: %.2f", cameraFOV);
+		loggedOnce = true;
+	}
+
 	return true;
 }
 
@@ -260,6 +270,15 @@ void Render::DrawGameObject(GameObject* go)
 	// Solo requiere mesh y transform, textura es opcional
 	if (mesh != nullptr && transform != nullptr)
 	{
+
+		// LOG TEMPORAL PARA DEBUG
+		static bool loggedOnce = false;
+		if (!loggedOnce && mesh->VBO_UV != 0)
+		{
+			LOG("Drawing mesh with UVs: VBO_UV = %d", mesh->VBO_UV);
+			loggedOnce = true;
+		}
+
 		// 1. Obtain the Model Matrix of the Component Transform
 		glm::mat4 model = transform->GetModelMatrix();
 
@@ -363,28 +382,50 @@ void Render::FocusOnGameObject(GameObject* go)
 
 void Render::CreateDefaultCheckerTexture()
 {
-	const int texWidth = 8, texHeight = 8;
-	GLubyte checkerTexture[texWidth * texHeight * 4];
+	const int texWidth = 64, texHeight = 64;
+	GLubyte* checkerTexture = new GLubyte[texWidth * texHeight * 4];
 
 	for (int y = 0; y < texHeight; y++) {
 		for (int x = 0; x < texWidth; x++) {
 			int i = (y * texWidth + x) * 4;
-			bool isBlack = ((x % 2) == 0) != ((y % 2) == 0);
-			checkerTexture[i + 0] = isBlack ? 0 : 255;
-			checkerTexture[i + 1] = isBlack ? 0 : 255;
-			checkerTexture[i + 2] = isBlack ? 0 : 255;
+
+			// Cuadros de 8x8 píxeles
+			bool isBlack = (((x / 8) % 2) == 0) != (((y / 8) % 2) == 0);
+
+			GLubyte color = isBlack ? 50 : 200;
+			checkerTexture[i + 0] = color;
+			checkerTexture[i + 1] = color;
+			checkerTexture[i + 2] = color;
 			checkerTexture[i + 3] = 255;
 		}
 	}
 
 	glGenTextures(1, &defaultCheckerTexture);
 	glBindTexture(GL_TEXTURE_2D, defaultCheckerTexture);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, checkerTexture);
+	glGenerateMipmap(GL_TEXTURE_2D);
+
 	glBindTexture(GL_TEXTURE_2D, 0);
 
-	LOG("Default checker texture created: ID %d", defaultCheckerTexture);
+	delete[] checkerTexture;
+
+	LOG("Default checker texture created: ID %d (%dx%d)", defaultCheckerTexture, texWidth, texHeight);
+
+	// Verificar
+	if (glIsTexture(defaultCheckerTexture))
+	{
+		LOG("Checker texture verification: OK");
+	}
+	else
+	{
+		LOG("ERROR: Checker texture creation failed!");
+	}
 }
 
 //void Render::SetViewPort(const SDL_Rect& rect)

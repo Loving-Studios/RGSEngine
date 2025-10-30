@@ -40,10 +40,24 @@ public:
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
         glEnableVertexAttribArray(0);
 
-        // TODO: Añadir texCoords y normals cuando sea necesario
-        // Por ahora solo cargamos posiciones
+        if (texCoords != nullptr)
+        {
+            glGenBuffers(1, &VBO_UV);
+            glBindBuffer(GL_ARRAY_BUFFER, VBO_UV);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(float) * num_vertices * 2, texCoords, GL_STATIC_DRAW);
 
-        // Crear IBO para índices
+            // Atributo 1: coordenadas UV (u, v)
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+            glEnableVertexAttribArray(1);
+
+            LOG("UV coordinates loaded to GPU (VBO_UV: %d)", VBO_UV);
+        }
+        else
+        {
+            LOG("No UV coordinates provided");
+        }
+
+        // IBO de índices
         glGenBuffers(1, &IBO);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * num_indices, indices, GL_STATIC_DRAW);
@@ -78,6 +92,11 @@ public:
             glDeleteBuffers(1, &VBO);
             VBO = 0;
         }
+        if (VBO_UV != 0)
+        {
+            glDeleteBuffers(1, &VBO_UV);
+            VBO_UV = 0;
+        }
         if (IBO != 0)
         {
             glDeleteBuffers(1, &IBO);
@@ -89,6 +108,7 @@ public:
 public:
     unsigned int VAO;
     unsigned int VBO;
+    unsigned int VBO_UV;
     unsigned int IBO;
     unsigned int indexCount;
 };

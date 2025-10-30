@@ -51,7 +51,10 @@ private:
     std::shared_ptr<GameObject> ProcessNode(aiNode* node, const aiScene* scene, std::shared_ptr<GameObject> parent, const std::string& fbxDirectory);
 
     void LoadMaterialTextures(const aiScene* scene, aiMesh* mesh, std::shared_ptr<GameObject> gameObject, const std::string& fbxDirectory);
+    void ApplyTextureToAllChildren(std::shared_ptr<GameObject> go, unsigned int textureID, const char* path);
     unsigned int LoadTextureFromFile(const char* file_path);
+
+    void AutoScaleGameObject(std::shared_ptr<GameObject> gameObject, const MeshData& meshData);
 
     aiLogStream stream;
 };
