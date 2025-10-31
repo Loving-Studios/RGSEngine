@@ -2,6 +2,10 @@
 #include <SDL3/SDL_version.h>
 #include <glad/glad.h>
 
+#include <windows.h>
+#include <psapi.h>
+#pragma comment(lib, "psapi.lib")
+
 #include "ModuleEditor.h"
 
 #include "imgui_impl_sdl3.h"
@@ -59,16 +63,10 @@ bool ModuleEditor::Start()
     ImGui_ImplSDL3_InitForOpenGL(window, glContext);
     ImGui_ImplOpenGL3_Init("#version 460"); // Force to use the same version of the shader
 
+    // Only check once if it's NVIDIA
     if (strstr((const char*)glGetString(GL_VENDOR), "NVIDIA"))
     {
-        // GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX 0x9048
-        glGetIntegerv(0x9048, &vram_budget_mb);
-        // GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX 0x9049
-        glGetIntegerv(0x9049, &vram_available_mb);
-
-        // Los valores vienen en KB, los pasamos a MB
-        vram_budget_mb /= 1024;
-        vram_available_mb /= 1024;
+        isNVIDIA = true;
     }
 
     return true;
@@ -98,7 +96,8 @@ bool ModuleEditor::Update(float dt)
         fpsLog.erase(fpsLog.begin());
         fpsLog.push_back(1.0f / dt);
     }
-
+    // Update stats of memory on each frame
+    UpdateMemoryStats();
 
     // --- FOCUS ON SELECTED GAMEOBJECT ---
     Input* input = Application::GetInstance().input.get();
@@ -618,11 +617,13 @@ void ModuleEditor::DrawConfigurationWindow()
         ImGui::Text("CPU Cores: %d", SDL_GetNumLogicalCPUCores());
         ImGui::Text("System RAM: %.2f GB", (int)SDL_GetSystemRAM() / 1024.0f);
 
+        ImGui::Text("Process RAM Usage: %d MB", ram_usage_mb);
+
         ImGui::Separator();
         ImGui::Text("GPU Vendor: %s", glGetString(GL_VENDOR));
         ImGui::Text("GPU Renderer: %s", glGetString(GL_RENDERER));
 
-        if (vram_budget_mb > 0)
+        if (isNVIDIA)
         {
             // Calculate the actual usage
             int vram_usage_mb = vram_budget_mb - vram_available_mb;
@@ -714,4 +715,28 @@ void ModuleEditor::DrawAboutWindow()
     );
 
     ImGui::End();
+}
+
+void ModuleEditor::UpdateMemoryStats()
+{
+    if (isNVIDIA)
+    {
+        // GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX 0x9048
+        glGetIntegerv(0x9048, &vram_budget_mb);
+        // GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX 0x9049
+        glGetIntegerv(0x9049, &vram_available_mb);
+
+        // Kb to mb
+        vram_budget_mb /= 1024;
+        vram_available_mb /= 1024;
+    }
+
+    PROCESS_MEMORY_COUNTERS pmc;
+    // GetCurrentProcess() gives back a handle of the actual process
+    // GetProcessMemoryInfo() fills the structure pmc with the info
+    if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc)))
+    {
+        // pmc.WorkingSetSize is the usage of physic RAM in bytes
+        ram_usage_mb = (int)(pmc.WorkingSetSize / (1024 * 1024)); // Convert to MB
+    }
 }
