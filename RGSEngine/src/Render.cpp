@@ -311,11 +311,10 @@ bool Render::Update(float dt)
 
 	// Obtain the rootObject of the scene
 	std::shared_ptr<GameObject> root = Application::GetInstance().scene->rootObject;
-
 	// Start the process to draw recursive
 	if (root != nullptr)
 	{
-		DrawGameObject(root.get());
+		DrawGameObject(root.get(), glm::mat4(1.0f));
 	}
 
 	static bool loggedOnce = false;
@@ -331,7 +330,7 @@ bool Render::Update(float dt)
 	return true;
 }
 
-void Render::DrawGameObject(GameObject* go)
+void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 {
 	if (go == nullptr || !go->IsActive())
 	{
@@ -343,7 +342,9 @@ void Render::DrawGameObject(GameObject* go)
 	ComponentMesh* mesh = go->GetComponent<ComponentMesh>();
 	ComponentTexture* texture = go->GetComponent<ComponentTexture>();
 
-	
+	glm::mat4 localTransform = (transform != nullptr) ? transform->GetModelMatrix() : glm::mat4(1.0f);
+	glm::mat4 globalTransform = parentTransform * localTransform;
+
 	if (mesh != nullptr && transform != nullptr)
 	{
 
@@ -355,13 +356,10 @@ void Render::DrawGameObject(GameObject* go)
 			loggedOnce = true;
 		}
 
-		// 1. Obtain the Model Matrix of the Component Transform
-		glm::mat4 model = transform->GetModelMatrix();
+		// Send to the shader
+		shader->SetMat4("model", globalTransform);
 
-		// 2. Sended to the shader
-		shader->SetMat4("model", model);
-
-		// 3. Link the texture (usar checker por defecto si no tiene)
+		// Link the texture
 		glActiveTexture(GL_TEXTURE0);
 		if (texture != nullptr)
 		{
@@ -374,17 +372,17 @@ void Render::DrawGameObject(GameObject* go)
 		}
 		shader->SetInt("tex1", 0);
 
-		// 4. Draw the mesh
+		// Draw the mesh
 		mesh->Draw();
 
-		// 5. Unlink the texture
+		// Unlink the texture
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 
 	// 6. Repeat the process for all the Childrens
 	for (const auto& child : go->GetChildren())
 	{
-		DrawGameObject(child.get());
+		DrawGameObject(child.get(), globalTransform);
 	}
 }
 

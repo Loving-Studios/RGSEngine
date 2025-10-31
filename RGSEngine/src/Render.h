@@ -88,7 +88,7 @@ private:
 	void ProcessMouseFreeLook(int deltaX, int deltaY);
 	void ProcessMouseOrbit(int deltaX, int deltaY);
 
-	void DrawGameObject(GameObject* go);
+	void DrawGameObject(GameObject* go, const glm::mat4& parentTransform);
 
 	void CreateDefaultCheckerTexture();
 };
