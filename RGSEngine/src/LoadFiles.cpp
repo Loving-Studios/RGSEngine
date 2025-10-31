@@ -200,12 +200,12 @@ std::shared_ptr<GameObject> LoadFiles::LoadFBX(const char* file_path)
     LOG("Number of meshes: %d", scene->mNumMeshes);
     LOG("Number of materials: %d", scene->mNumMaterials);
 
-    // Obtener directorio del FBX para texturas relativas
+    // Get FBX directory for relative textures
     std::string fbxPath(file_path);
     size_t lastSlash = fbxPath.find_last_of("/\\");
     std::string fbxDirectory = (lastSlash != std::string::npos) ? fbxPath.substr(0, lastSlash + 1) : "";
 
-    // Obtener nombre del archivo
+    // Get file name
     std::string fileName = (lastSlash != std::string::npos) ? fbxPath.substr(lastSlash + 1) : fbxPath;
     size_t lastDot = fileName.find_last_of(".");
     if (lastDot != std::string::npos)
@@ -219,10 +219,10 @@ std::shared_ptr<GameObject> LoadFiles::LoadFBX(const char* file_path)
         ProcessMesh(scene->mMeshes[0], meshData);
         rootObject = CreateGameObjectFromMesh(meshData, fileName.c_str());
 
-        // Cargar texturas del material
+        
         LoadMaterialTextures(scene, scene->mMeshes[0], rootObject, fbxDirectory);
 
-        // Liberar datos temporales
+        // Release temporary data
         delete[] meshData.vertices;
         delete[] meshData.indices;
         if (meshData.texCoords) delete[] meshData.texCoords;
@@ -247,7 +247,7 @@ std::shared_ptr<GameObject> LoadFiles::LoadFBX(const char* file_path)
         LOG("Has Texture: %s", rootObject->GetComponent<ComponentTexture>() ? "YES" : "NO");
         LOG("Number of children: %d", (int)rootObject->GetChildren().size());
 
-        // Verificar que el mesh tenga datos
+        // Verify that the mesh has data
         ComponentMesh* mesh = rootObject->GetComponent<ComponentMesh>();
         if (mesh)
         {
@@ -299,7 +299,7 @@ std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* 
 
         AutoScaleGameObject(meshObject, meshData);
 
-        // Cargar texturas del material
+
         LoadMaterialTextures(scene, mesh, meshObject, fbxDirectory);
 
         delete[] meshData.vertices;
@@ -319,7 +319,7 @@ std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* 
 
 void LoadFiles::ProcessMesh(aiMesh* aiMesh, MeshData& meshData)
 {
-    // Copiar vértices
+    // Copy vertices
     meshData.num_vertices = aiMesh->mNumVertices;
     meshData.vertices = new float[meshData.num_vertices * 3];
     memcpy(meshData.vertices, aiMesh->mVertices, sizeof(float) * meshData.num_vertices * 3);
@@ -334,7 +334,7 @@ void LoadFiles::ProcessMesh(aiMesh* aiMesh, MeshData& meshData)
         LOG("  - Has normals");
     }
 
-    // Copiar coordenadas de textura
+    // Copy texture coordinates
     if (aiMesh->HasTextureCoords(0))
     {
         meshData.hasTexCoords = true;
@@ -346,7 +346,7 @@ void LoadFiles::ProcessMesh(aiMesh* aiMesh, MeshData& meshData)
             meshData.texCoords[i * 2 + 1] = aiMesh->mTextureCoords[0][i].y;
         }
         LOG("  - Has texture coordinates");
-        // AÑADIR: Verificar rango de UVs
+
         float minU = FLT_MAX, maxU = -FLT_MAX;
         float minV = FLT_MAX, maxV = -FLT_MAX;
 
@@ -364,7 +364,7 @@ void LoadFiles::ProcessMesh(aiMesh* aiMesh, MeshData& meshData)
     }
     else{ LOG("  - NO texture coordinates"); }
 
-    // Copiar colores de vértice
+    // Copy vertex colors
     if (aiMesh->HasVertexColors(0))
     {
         meshData.hasColors = true;
@@ -380,7 +380,7 @@ void LoadFiles::ProcessMesh(aiMesh* aiMesh, MeshData& meshData)
         LOG("  - Has vertex colors");
     }
 
-    // Copiar índices
+    // Copy indexes
     if (aiMesh->HasFaces())
     {
         meshData.num_indices = aiMesh->mNumFaces * 3;
@@ -429,14 +429,14 @@ void LoadFiles::LoadMaterialTextures(const aiScene* scene, aiMesh* mesh, std::sh
         LOG("=== MATERIAL INFO ===");
         LOG("Material index: %d", mesh->mMaterialIndex);
 
-        // Información del material
+        // Material information
         aiString materialName;
         if (material->Get(AI_MATKEY_NAME, materialName) == AI_SUCCESS)
         {
             LOG("Material name: %s", materialName.C_Str());
         }
 
-        // Contar texturas de cada tipo
+        // Count textures of each type
         int diffuseCount = material->GetTextureCount(aiTextureType_DIFFUSE);
         int specularCount = material->GetTextureCount(aiTextureType_SPECULAR);
         int normalCount = material->GetTextureCount(aiTextureType_NORMALS);
@@ -444,7 +444,7 @@ void LoadFiles::LoadMaterialTextures(const aiScene* scene, aiMesh* mesh, std::sh
         LOG("Texture counts - Diffuse: %d, Specular: %d, Normal: %d",
             diffuseCount, specularCount, normalCount);
 
-        // Buscar textura difusa
+        // Search for diffuse texture
         if (diffuseCount > 0)
         {
             aiString texturePath;
@@ -453,18 +453,18 @@ void LoadFiles::LoadMaterialTextures(const aiScene* scene, aiMesh* mesh, std::sh
                 std::string textureFile(texturePath.C_Str());
                 LOG("Texture path from FBX: '%s'", textureFile.c_str());
 
-                // Limpiar path
+                // Clean path
                 if (textureFile.find("./") == 0)
                     textureFile = textureFile.substr(2);
 
                 std::replace(textureFile.begin(), textureFile.end(), '\\', '/');
 
-                // Intentar múltiples rutas
+                // Try multiple routes
                 std::vector<std::string> possiblePaths;
-                possiblePaths.push_back(fbxDirectory + textureFile); // Relativa al FBX
-                possiblePaths.push_back(textureFile); // Absoluta
+                possiblePaths.push_back(fbxDirectory + textureFile); // Relative
+                possiblePaths.push_back(textureFile); // Absolute
 
-                // Extraer solo el nombre del archivo
+                // Extract the file name
                 size_t lastSlash = textureFile.find_last_of("/\\");
                 if (lastSlash != std::string::npos)
                 {
@@ -516,7 +516,7 @@ unsigned int LoadFiles::LoadTextureFromFile(const char* file_path)
     ilGenImages(1, &imageID);
     ilBindImage(imageID);
 
-    // Cargar imagen
+    // Load image
     if (!ilLoadImage(file_path))
     {
         ILenum error = ilGetError();
@@ -525,7 +525,7 @@ unsigned int LoadFiles::LoadTextureFromFile(const char* file_path)
         return 0;
     }
 
-    // Convertir a formato común (RGBA)
+    // Convert to RGBA format
     if (!ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE))
     {
         LOG("DevIL Error converting image");
@@ -533,12 +533,12 @@ unsigned int LoadFiles::LoadTextureFromFile(const char* file_path)
         return 0;
     }
 
-    // Obtener datos de la imagen
+    // Get image data
     ILubyte* data = ilGetData();
     ILint width = ilGetInteger(IL_IMAGE_WIDTH);
     ILint height = ilGetInteger(IL_IMAGE_HEIGHT);
 
-    // Crear textura OpenGL
+    // Create texture 
     GLuint textureID;
     glGenTextures(1, &textureID);
     glBindTexture(GL_TEXTURE_2D, textureID);
@@ -553,7 +553,7 @@ unsigned int LoadFiles::LoadTextureFromFile(const char* file_path)
 
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    // Limpiar DevIL
+    // Clean DevIL
     ilDeleteImages(1, &imageID);
 
     LOG("Texture created: %dx%d, OpenGL ID: %d", width, height, textureID);
@@ -576,8 +576,6 @@ bool LoadFiles::LoadTexture(const char* file_path)
 
     LOG("Texture loaded successfully (ID: %d)", textureID);
 
-    // TODO: Aplicar a GameObjects seleccionados
-    // Por ahora, aplicar a TODOS los GameObjects de la escena como prueba
 
     std::shared_ptr<GameObject> root = Application::GetInstance().scene->rootObject;
     if (root)
@@ -593,21 +591,20 @@ void LoadFiles::ApplyTextureToAllChildren(std::shared_ptr<GameObject> go, unsign
     if (go == nullptr)
         return;
 
-    // Si el GameObject tiene mesh, aplicar textura
+    // If the GameObject has a mesh, apply texture
     if (go->GetComponent<ComponentMesh>())
     {
-        // Eliminar textura anterior si existe
+        // Remove previous texture if it exists
         auto oldTex = go->GetComponent<ComponentTexture>();
         if (oldTex)
         {
-            // No podemos eliminar componentes fácilmente, así que reemplazamos
             oldTex->textureID = textureID;
             oldTex->path = path;
             LOG("Texture updated on: %s", go->name.c_str());
         }
         else
         {
-            // Crear nueva textura
+            // Create new texture
             auto newTex = std::make_shared<ComponentTexture>(go.get());
             newTex->textureID = textureID;
             newTex->path = path;
@@ -616,7 +613,7 @@ void LoadFiles::ApplyTextureToAllChildren(std::shared_ptr<GameObject> go, unsign
         }
     }
 
-    // Recursivo a hijos
+    // Recursive to children
     for (const auto& child : go->GetChildren())
     {
         ApplyTextureToAllChildren(child, textureID, path);
@@ -628,7 +625,7 @@ void LoadFiles::AutoScaleGameObject(std::shared_ptr<GameObject> gameObject, cons
     if (meshData.num_vertices == 0 || meshData.vertices == nullptr)
         return;
 
-    // Calcular bounding box
+    // Calculate bounding box
     float minX = FLT_MAX, minY = FLT_MAX, minZ = FLT_MAX;
     float maxX = -FLT_MAX, maxY = -FLT_MAX, maxZ = -FLT_MAX;
 
@@ -646,7 +643,7 @@ void LoadFiles::AutoScaleGameObject(std::shared_ptr<GameObject> gameObject, cons
         maxZ = std::max(maxZ, z);
     }
 
-    // Calcular tamaño
+    // Calculate size
     float sizeX = maxX - minX;
     float sizeY = maxY - minY;
     float sizeZ = maxZ - minZ;
@@ -654,8 +651,8 @@ void LoadFiles::AutoScaleGameObject(std::shared_ptr<GameObject> gameObject, cons
 
     LOG("Object size: %.2f x %.2f x %.2f (max: %.2f)", sizeX, sizeY, sizeZ, maxSize);
 
-    // Si el objeto es muy grande, escalarlo
-    float targetSize = 2.0f; // Tamaño objetivo (2 unidades)
+    // If the object is too large, scale it
+    float targetSize = 2.0f; // Size we want the objects to be
 
     if (maxSize > targetSize)
     {

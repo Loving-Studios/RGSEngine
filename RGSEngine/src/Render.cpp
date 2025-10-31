@@ -498,7 +498,6 @@ void Render::CreateDefaultCheckerTexture()
 
 	LOG("Default checker texture created: ID %d (%dx%d)", defaultCheckerTexture, texWidth, texHeight);
 
-	// Verificar
 	if (glIsTexture(defaultCheckerTexture))
 	{
 		LOG("Checker texture verification: OK");
