@@ -241,6 +241,8 @@ std::shared_ptr<GameObject> LoadFiles::LoadFBX(const char* file_path)
 
     if (rootObject != nullptr)
     {
+        AutoScaleObject(rootObject);
+
         LOG("=== FBX LOADED SUCCESSFULLY ===");
         LOG("GameObject name: %s", rootObject->name.c_str());
         LOG("Has Transform: %s", rootObject->GetComponent<ComponentTransform>() ? "YES" : "NO");
@@ -298,7 +300,7 @@ std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* 
             meshData.texCoords, meshData.normals);
         meshObject->AddComponent(compMesh);
 
-        AutoScaleGameObject(meshObject, meshData);
+        //AutoScaleGameObject(meshObject, meshData);
 
 
         LoadMaterialTextures(scene, mesh, meshObject, fbxDirectory);
@@ -416,7 +418,7 @@ std::shared_ptr<GameObject> LoadFiles::CreateGameObjectFromMesh(const MeshData& 
         meshData.texCoords, meshData.normals);
     gameObject->AddComponent(compMesh);
 
-    AutoScaleGameObject(gameObject, meshData);
+    //AutoScaleGameObject(gameObject, meshData);
 
     return gameObject;
 }
@@ -621,53 +623,99 @@ void LoadFiles::ApplyTextureToAllChildren(std::shared_ptr<GameObject> go, unsign
     }
 }
 
-void LoadFiles::AutoScaleGameObject(std::shared_ptr<GameObject> gameObject, const MeshData& meshData)
+void LoadFiles::AutoScaleObject(std::shared_ptr<GameObject> rootObject)
 {
-    if (meshData.num_vertices == 0 || meshData.vertices == nullptr)
+    if (rootObject == nullptr)
         return;
 
-    // Calculate bounding box
+    // Calculate the bounding box for the entire hierarchy
     float minX = FLT_MAX, minY = FLT_MAX, minZ = FLT_MAX;
     float maxX = -FLT_MAX, maxY = -FLT_MAX, maxZ = -FLT_MAX;
 
-    for (unsigned int i = 0; i < meshData.num_vertices; ++i)
-    {
-        float x = meshData.vertices[i * 3 + 0];
-        float y = meshData.vertices[i * 3 + 1];
-        float z = meshData.vertices[i * 3 + 2];
+    CalculateHierarchyBounds(rootObject, minX, maxX, minY, maxY, minZ, maxZ);
 
-        minX = std::min(minX, x);
-        maxX = std::max(maxX, x);
-        minY = std::min(minY, y);
-        maxY = std::max(maxY, y);
-        minZ = std::min(minZ, z);
-        maxZ = std::max(maxZ, z);
+    if (minX == FLT_MAX)
+    {
+        LOG("No valid bounds found for auto-scaling");
+        return;
     }
 
-    // Calculate size
+    // Calculate total size
     float sizeX = maxX - minX;
     float sizeY = maxY - minY;
     float sizeZ = maxZ - minZ;
     float maxSize = std::max({ sizeX, sizeY, sizeZ });
 
-    LOG("Object size: %.2f x %.2f x %.2f (max: %.2f)", sizeX, sizeY, sizeZ, maxSize);
+    LOG("Total hierarchy size: %.2f x %.2f x %.2f (max: %.2f)", sizeX, sizeY, sizeZ, maxSize);
 
-    // If the object is too large, scale it
-    float targetSize = 2.0f; // Size we want the objects to be
+    // If the object is very large, scale ONLY THE ROOT
+    float targetSize = 2.0f;
 
     if (maxSize > targetSize)
     {
         float scale = targetSize / maxSize;
 
-        ComponentTransform* transform = gameObject->GetComponent<ComponentTransform>();
+        ComponentTransform* transform = rootObject->GetComponent<ComponentTransform>();
         if (transform)
         {
             transform->scale = glm::vec3(scale, scale, scale);
-            LOG("Auto-scaled object by factor: %.4f (from %.2f to %.2f)", scale, maxSize, targetSize);
+            LOG("Auto-scaled ROOT object by factor: %.4f (from %.2f to %.2f)", scale, maxSize, targetSize);
         }
     }
     else
     {
         LOG("Object size is fine, no scaling needed");
+    }
+}
+
+void LoadFiles::CalculateHierarchyBounds(std::shared_ptr<GameObject> go,
+    float& minX, float& maxX,
+    float& minY, float& maxY,
+    float& minZ, float& maxZ)
+{
+    if (go == nullptr)
+        return;
+
+    // If this GameObject has a mesh, process its vertices
+    ComponentMesh* mesh = go->GetComponent<ComponentMesh>();
+    if (mesh && mesh->VAO != 0)
+    {
+        // Get vertices from the VBO
+        glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
+
+        GLint bufferSize;
+        glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &bufferSize);
+        int numVertices = bufferSize / (3 * sizeof(float));
+
+        if (numVertices > 0)
+        {
+            float* vertices = new float[numVertices * 3];
+            glGetBufferSubData(GL_ARRAY_BUFFER, 0, bufferSize, vertices);
+
+            // Update bounds
+            for (int i = 0; i < numVertices; ++i)
+            {
+                float x = vertices[i * 3 + 0];
+                float y = vertices[i * 3 + 1];
+                float z = vertices[i * 3 + 2];
+
+                minX = std::min(minX, x);
+                maxX = std::max(maxX, x);
+                minY = std::min(minY, y);
+                maxY = std::max(maxY, y);
+                minZ = std::min(minZ, z);
+                maxZ = std::max(maxZ, z);
+            }
+
+            delete[] vertices;
+        }
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+
+    // Recursively process all children
+    for (const auto& child : go->GetChildren())
+    {
+        CalculateHierarchyBounds(child, minX, maxX, minY, maxY, minZ, maxZ);
     }
 }

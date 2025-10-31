@@ -54,7 +54,12 @@ private:
     void ApplyTextureToAllChildren(std::shared_ptr<GameObject> go, unsigned int textureID, const char* path);
     unsigned int LoadTextureFromFile(const char* file_path);
 
-    void AutoScaleGameObject(std::shared_ptr<GameObject> gameObject, const MeshData& meshData);
+    //scale FBX size to enter screen
+    void AutoScaleObject(std::shared_ptr<GameObject> rootObject);
+    void CalculateHierarchyBounds(std::shared_ptr<GameObject> go,
+        float& minX, float& maxX,
+        float& minY, float& maxY,
+        float& minZ, float& maxZ);
 
     aiLogStream stream;
 };
