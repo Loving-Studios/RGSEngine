@@ -6,6 +6,8 @@
 #include "ComponentMesh.h"
 #include "ComponentTexture.h"
 
+#include "LoadFiles.h"
+
 #include <glad/glad.h>
 
 ModuleScene::ModuleScene() : Module()
@@ -23,6 +25,9 @@ bool ModuleScene::Start()
 
     // Creation of the GameObject root of the scene, the SceneRoot
     rootObject = std::make_shared<GameObject>("SceneRoot");
+
+    //Create the fbx from the start of the engine
+    Application::GetInstance().loadFiles->HandleDropFile("B:/Clase/3r/Motores/Motor/RGSEngine/RGSEngine/Assets/BakerHouse.fbx");
 
     return true;
 }
