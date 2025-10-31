@@ -47,6 +47,8 @@ public:
 	float cameraSensitivity;
 	float cameraFOV;      // Field of view
 
+	bool drawVertexNormals;
+
 	void ProcessKeyboardMovement(float dt);
 	void FocusOnGameObject(GameObject* go);
 
@@ -58,6 +60,8 @@ private:
 
 	// Shader
 	std::unique_ptr<Shader> shader;
+
+	std::unique_ptr<Shader> normalsShader;
 
 	// Camera propieties 
 	glm::vec3 cameraPos; // Camera position

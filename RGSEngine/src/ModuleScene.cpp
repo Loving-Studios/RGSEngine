@@ -9,6 +9,8 @@
 
 #include <glad/glad.h>
 #include <vector>
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 static void CreateDefaultCheckerTexture(std::shared_ptr<ComponentTexture> texture)
 {
@@ -180,9 +182,14 @@ void ModuleScene::CreateTriangle()
         1.0f, 0.0f,
         0.5f, 1.0f
     };
+    float normals[] = {
+        0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f
+    };
     unsigned int indices[] = { 0, 1, 2 };
 
-    mesh->LoadMesh(positions, 3, indices, 3, uvs, nullptr);
+    mesh->LoadMesh(positions, 3, indices, 3, uvs, normals);
     go->AddComponent(mesh);
 
     auto texture = std::make_shared<ComponentTexture>(go.get());
@@ -210,9 +217,16 @@ void ModuleScene::CreateSquare()
         1.0f, 1.0f,
         0.0f, 1.0f
     };
+
+    float normals[] = {
+        0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f
+    };
     unsigned int indices[] = { 0, 1, 2,  0, 2, 3 };
 
-    mesh->LoadMesh(positions, 4, indices, 6, uvs, nullptr);
+    mesh->LoadMesh(positions, 4, indices, 6, uvs, normals);
     go->AddComponent(mesh);
 
     auto texture = std::make_shared<ComponentTexture>(go.get());
@@ -240,9 +254,16 @@ void ModuleScene::CreateRectangle()
         1.0f, 1.0f,
         0.0f, 1.0f
     };
+
+    float normals[] = {
+        0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f
+    };
     unsigned int indices[] = { 0, 1, 2,  0, 2, 3 };
 
-    mesh->LoadMesh(positions, 4, indices, 6, uvs, nullptr);
+    mesh->LoadMesh(positions, 4, indices, 6, uvs, normals);
     go->AddComponent(mesh);
 
     auto texture = std::make_shared<ComponentTexture>(go.get());
@@ -289,6 +310,21 @@ void ModuleScene::CreateCube()
         0.0f, 0.0f,   1.0f, 0.0f,   1.0f, 1.0f,   0.0f, 1.0f
     };
 
+    float normals[] = {
+        // Front
+        0.0f, 0.0f, 1.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f, 1.0f,
+        // Back
+        0.0f, 0.0f, -1.0f,  0.0f, 0.0f, -1.0f,  0.0f, 0.0f, -1.0f,  0.0f, 0.0f, -1.0f,
+        // Top
+        0.0f, 1.0f, 0.0f,   0.0f, 1.0f, 0.0f,   0.0f, 1.0f, 0.0f,   0.0f, 1.0f, 0.0f,
+        // Bottom
+        0.0f, -1.0f, 0.0f,  0.0f, -1.0f, 0.0f,  0.0f, -1.0f, 0.0f,  0.0f, -1.0f, 0.0f,
+        // Right
+        1.0f, 0.0f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 0.0f, 0.0f,
+        // Left
+        -1.0f, 0.0f, 0.0f,  -1.0f, 0.0f, 0.0f,  -1.0f, 0.0f, 0.0f,  -1.0f, 0.0f, 0.0f
+    };
+
     unsigned int indices[] = {
          0,  1,  2,    0,  2,  3, // Front
          4,  5,  6,    4,  6,  7, // Back
@@ -299,7 +335,7 @@ void ModuleScene::CreateCube()
     };
     unsigned int num_indices = 36;
 
-    mesh->LoadMesh(positions, num_vertices, indices, num_indices, uvs, nullptr);
+    mesh->LoadMesh(positions, num_vertices, indices, num_indices, uvs, normals);
     go->AddComponent(mesh);
 
     auto texture = std::make_shared<ComponentTexture>(go.get());
@@ -318,6 +354,7 @@ void ModuleScene::CreateSphere()
     std::vector<float> positions;
     std::vector<float> uvs;
     std::vector<unsigned int> indices;
+    std::vector<float> normals;
 
     const int segments = 24;
     const int rings = 24;
@@ -339,6 +376,11 @@ void ModuleScene::CreateSphere()
 
             positions.push_back(x); positions.push_back(y); positions.push_back(z);
             uvs.push_back(u); uvs.push_back(v);
+
+            glm::vec3 normal = glm::normalize(glm::vec3(x, y, z));
+            normals.push_back(normal.x);
+            normals.push_back(normal.y);
+            normals.push_back(normal.z);
         }
     }
 
@@ -357,7 +399,7 @@ void ModuleScene::CreateSphere()
         }
     }
 
-    mesh->LoadMesh(positions.data(), positions.size() / 3, indices.data(), indices.size(), uvs.data(), nullptr);
+    mesh->LoadMesh(positions.data(), positions.size() / 3, indices.data(), indices.size(), uvs.data(), normals.data());
     go->AddComponent(mesh);
 
     auto texture = std::make_shared<ComponentTexture>(go.get());

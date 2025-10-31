@@ -440,6 +440,17 @@ void ModuleEditor::DrawInspectorWindow()
                 // Mesh info
                 ImGui::Text("Index Count: %d", mesh->indexCount);
                 ImGui::Text("VAO: %d, VBO: %d, IBO: %d", mesh->VAO, mesh->VBO, mesh->IBO);
+
+                // Only show the mesh if it has normals (check the normals VAO)
+                if (mesh->normalsVAO != 0)
+                {
+                    // Enter the public variable of ModuleRender
+                    ImGui::Checkbox("Show Vertex Normals", &Application::GetInstance().render->drawVertexNormals);
+                }
+                else
+                {
+                    ImGui::Text("Normals: Not loaded");
+                }
             }
             break;
         }

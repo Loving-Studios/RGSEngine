@@ -18,6 +18,32 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+namespace NormalShaders
+{
+	const char* vertex = R"(
+    #version 460 core
+    layout (location = 0) in vec3 aPos; // Positions
+
+    uniform mat4 model;
+    uniform mat4 view;
+    uniform mat4 projection;
+
+    void main()
+    {
+        gl_Position = projection * view * model * vec4(aPos, 1.0);
+    }
+    )";
+
+	const char* fragment = R"(
+    #version 460 core
+    out vec4 FragColor;
+
+    void main()
+    {
+        FragColor = vec4(1.0, 1.0, 0.0, 1.0); // Color amarillo
+    }
+    )";
+}
 
 Render::Render() : Module()
 {
@@ -28,6 +54,8 @@ Render::Render() : Module()
 	background.a = 255;
 
 	defaultCheckerTexture = 0;
+
+	drawVertexNormals = false;
 
 	// Initialize camera rotation
 	cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
@@ -90,9 +118,12 @@ bool Render::Start()
 {
 	LOG("render start");
 
-	//Create shader
+	// Create shader
 	shader = std::make_unique<Shader>();
 
+	// Create shader for the normals
+	normalsShader = std::make_unique<Shader>(NormalShaders::vertex, NormalShaders::fragment);
+	
 	CreateDefaultCheckerTexture();
 
 	return true;
@@ -309,6 +340,10 @@ bool Render::Update(float dt)
 	shader->SetMat4("view", view);
 	shader->SetMat4("projection", projection);
 
+	normalsShader->Use();
+	normalsShader->SetMat4("view", view);
+	normalsShader->SetMat4("projection", projection);
+
 	// Obtain the rootObject of the scene
 	std::shared_ptr<GameObject> root = Application::GetInstance().scene->rootObject;
 	// Start the process to draw recursive
@@ -347,6 +382,8 @@ void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 
 	if (mesh != nullptr && transform != nullptr)
 	{
+		// Force the main shader is active
+		shader->Use();
 
 		// TEMPORARY LOG FOR DEBUG
 		static bool loggedOnce = false;
@@ -377,6 +414,17 @@ void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 
 		// Unlink the texture
 		glBindTexture(GL_TEXTURE_2D, 0);
+
+		if (drawVertexNormals)
+		{
+			// Use the shader of the normals
+			normalsShader->Use();
+			// Send the model matrix
+			normalsShader->SetMat4("model", globalTransform);
+
+			// Draw the lines of the normals
+			mesh->DrawNormals();
+		}
 	}
 
 	// 6. Repeat the process for all the Childrens
@@ -408,6 +456,7 @@ bool Render::CleanUp()
 
 	// The shader is from this class so we have to CleanUp
 	shader.reset();
+	normalsShader.reset();
 	return true;
 }
 
