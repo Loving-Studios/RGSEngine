@@ -23,6 +23,8 @@ public:
     void CreateCube();
     void CreatePrism();
 
+    void AddGameObject(std::shared_ptr<GameObject> gameObject);
+
 public:
     // This is a Smart Pointer for the rootObject
     // When the "rootObject" is destroyed, makes the CleanUp auto to all the childrens and components

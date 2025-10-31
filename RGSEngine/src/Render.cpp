@@ -27,6 +27,8 @@ Render::Render() : Module()
 	background.b = 0;
 	background.a = 255;
 
+	defaultCheckerTexture = 0;
+
 	// Initialize camera rotation
 	cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
 	cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
@@ -90,6 +92,8 @@ bool Render::Start()
 
 	//Create shader
 	shader = std::make_unique<Shader>();
+
+	CreateDefaultCheckerTexture();
 
 	return true;
 }
@@ -314,6 +318,16 @@ bool Render::Update(float dt)
 		DrawGameObject(root.get());
 	}
 
+	static bool loggedOnce = false;
+	if (!loggedOnce)
+	{
+		LOG("=== CAMERA INFO ===");
+		LOG("Camera position: (%.2f, %.2f, %.2f)", cameraPos.x, cameraPos.y, cameraPos.z);
+		LOG("Camera front: (%.2f, %.2f, %.2f)", cameraFront.x, cameraFront.y, cameraFront.z);
+		LOG("Camera FOV: %.2f", cameraFOV);
+		loggedOnce = true;
+	}
+
 	return true;
 }
 
@@ -329,25 +343,42 @@ void Render::DrawGameObject(GameObject* go)
 	ComponentMesh* mesh = go->GetComponent<ComponentMesh>();
 	ComponentTexture* texture = go->GetComponent<ComponentTexture>();
 
-	// Only draw if the object has all the necesary
-	if (mesh != nullptr && texture != nullptr && transform != nullptr)
+	// Solo requiere mesh y transform, textura es opcional
+	if (mesh != nullptr && transform != nullptr)
 	{
+
+		// LOG TEMPORAL PARA DEBUG
+		static bool loggedOnce = false;
+		if (!loggedOnce && mesh->VBO_UV != 0)
+		{
+			LOG("Drawing mesh with UVs: VBO_UV = %d", mesh->VBO_UV);
+			loggedOnce = true;
+		}
+
 		// 1. Obtain the Model Matrix of the Component Transform
 		glm::mat4 model = transform->GetModelMatrix();
 
 		// 2. Sended to the shader
 		shader->SetMat4("model", model);
 
-		// 3. Link the texture
+		// 3. Link the texture (usar checker por defecto si no tiene)
 		glActiveTexture(GL_TEXTURE0);
-		texture->Bind();
+		if (texture != nullptr)
+		{
+			texture->Bind();
+		}
+		else
+		{
+			// Usar textura de checkers por defecto
+			glBindTexture(GL_TEXTURE_2D, defaultCheckerTexture);
+		}
 		shader->SetInt("tex1", 0);
 
 		// 4. Draw the mesh
 		mesh->Draw();
 
 		// 5. Unlink the texture
-		texture->Unbind();
+		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 
 	// 6. Repeat the process for all the Childrens
@@ -370,6 +401,13 @@ bool Render::PostUpdate()
 bool Render::CleanUp()
 {
 	LOG("Destroying SDL render");
+
+	if (defaultCheckerTexture != 0)
+	{
+		glDeleteTextures(1, &defaultCheckerTexture);
+		defaultCheckerTexture = 0;
+	}
+
 	// The shader is from this class so we have to CleanUp
 	shader.reset();
 	return true;
@@ -421,6 +459,54 @@ void Render::FocusOnGameObject(GameObject* go)
 
 	LOG("Camera focused on: %s at position (%.2f, %.2f, %.2f)",
 		go->GetName().c_str(), targetPos.x, targetPos.y, targetPos.z);
+}
+
+void Render::CreateDefaultCheckerTexture()
+{
+	const int texWidth = 64, texHeight = 64;
+	GLubyte* checkerTexture = new GLubyte[texWidth * texHeight * 4];
+
+	for (int y = 0; y < texHeight; y++) {
+		for (int x = 0; x < texWidth; x++) {
+			int i = (y * texWidth + x) * 4;
+
+			// Cuadros de 8x8 píxeles
+			bool isBlack = (((x / 8) % 2) == 0) != (((y / 8) % 2) == 0);
+
+			GLubyte color = isBlack ? 50 : 200;
+			checkerTexture[i + 0] = color;
+			checkerTexture[i + 1] = color;
+			checkerTexture[i + 2] = color;
+			checkerTexture[i + 3] = 255;
+		}
+	}
+
+	glGenTextures(1, &defaultCheckerTexture);
+	glBindTexture(GL_TEXTURE_2D, defaultCheckerTexture);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, checkerTexture);
+	glGenerateMipmap(GL_TEXTURE_2D);
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	delete[] checkerTexture;
+
+	LOG("Default checker texture created: ID %d (%dx%d)", defaultCheckerTexture, texWidth, texHeight);
+
+	// Verificar
+	if (glIsTexture(defaultCheckerTexture))
+	{
+		LOG("Checker texture verification: OK");
+	}
+	else
+	{
+		LOG("ERROR: Checker texture creation failed!");
+	}
 }
 
 //void Render::SetViewPort(const SDL_Rect& rect)

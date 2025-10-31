@@ -2,7 +2,7 @@
 #include "Input.h"
 #include "Window.h"
 #include "Log.h"
-
+#include "LoadFiles.h"
 #include "imgui_impl_sdl3.h"
 
 #define MAX_KEYS 300
@@ -130,6 +130,27 @@ bool Input::PreUpdate()
 
 		case SDL_EVENT_MOUSE_WHEEL:
 			mouseWheelY = (int)event.wheel.y;
+			break;
+
+		case SDL_EVENT_DROP_BEGIN:
+			LOG("Drop beginning...");
+			break;
+
+		case SDL_EVENT_DROP_FILE:
+		{
+			const char* dropped_filedir = event.drop.data;
+			LOG("File dropped on window: %s", dropped_filedir);
+
+			// Pasar el archivo al módulo LoadFiles para procesarlo
+			Application::GetInstance().loadFiles->HandleDropFile(dropped_filedir);
+
+			// Liberar la memoria asignada por SDL
+			//SDL_free(dropped_filedir);//no funciona
+		}
+		break;
+
+		case SDL_EVENT_DROP_COMPLETE:
+			LOG("Drop complete");
 			break;
 		}
 	}

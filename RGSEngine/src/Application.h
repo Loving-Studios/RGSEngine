@@ -82,6 +82,7 @@ public:
 	std::shared_ptr<Render> render;
 	std::shared_ptr<ModuleScene> scene;
 	std::shared_ptr<ModuleEditor> editor;
+	std::shared_ptr<LoadFiles> loadFiles;
 
 private:
 	float dt;
