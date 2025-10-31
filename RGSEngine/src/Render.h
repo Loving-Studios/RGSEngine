@@ -40,6 +40,8 @@ public:
 public:
 	SDL_Color background;
 
+	unsigned int defaultCheckerTexture;
+
 	//Camera movement speed
 	float cameraSpeed;
 	float cameraSensitivity;
@@ -57,10 +59,7 @@ private:
 	// Shader
 	std::unique_ptr<Shader> shader;
 
-	unsigned int defaultCheckerTexture;
-
 	// Camera propieties 
-
 	glm::vec3 cameraPos; // Camera position
 	glm::vec3 cameraFront; // Direction the camera is looking at
 	glm::vec3 cameraUp; // Vector up camera

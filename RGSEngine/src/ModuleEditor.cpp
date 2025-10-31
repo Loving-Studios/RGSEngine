@@ -449,6 +449,42 @@ void ModuleEditor::DrawInspectorWindow()
             ComponentTexture* texture = static_cast<ComponentTexture*>(component.get());
             if (ImGui::CollapsingHeader("Texture"))
             {
+                bool useDefault = texture->useDefaultTexture;
+                if (ImGui::Checkbox("Use Default Checkered Texture", &useDefault))
+                {
+                    texture->useDefaultTexture = useDefault;
+                    if (useDefault)
+                    {
+                        // Force save the original texture
+                        if (texture->originalTextureID == 0)
+                        {
+                            texture->originalTextureID = texture->textureID;
+                            texture->originalPath = texture->path;
+                        }
+
+                        // Obtain the texture default of ModuleRender
+                        unsigned int defaultTexID = Application::GetInstance().render->defaultCheckerTexture;
+
+                        // Assign the default texture
+                        texture->textureID = defaultTexID;
+                        texture->path = "default_checker";
+                        // Don't change the width and height so it's the original size
+                    }
+                    else
+                    {
+                        // Restore original texture
+                        if (texture->originalTextureID != 0)
+                        {
+                            texture->textureID = texture->originalTextureID;
+                            texture->path = texture->originalPath;
+
+                            // Clean all the savings
+                            texture->originalTextureID = 0;
+                            texture->originalPath = "";
+                        }
+                    }
+                }
+
                 // Texture info
                 ImGui::Text("Path: %s", texture->path.c_str());
                 ImGui::Text("Size: %d x %d", texture->width, texture->height);

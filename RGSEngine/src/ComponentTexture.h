@@ -9,7 +9,8 @@ class ComponentTexture : public Component
 public:
     ComponentTexture(GameObject* owner)
         : Component(owner, ComponentType::TEXTURE),
-        textureID(0), width(0), height(0)
+        textureID(0), width(0), height(0),
+        useDefaultTexture(false), originalTextureID(0)
     {
     }
 
@@ -47,4 +48,8 @@ public:
     int width;
     int height;
     std::string path; // Keep the path for the Inspector
+
+    bool useDefaultTexture;
+    unsigned int originalTextureID;
+    std::string originalPath;
 };
