@@ -1,79 +1,66 @@
-# RGSEngine
-Motores, ensambladoras, 3 o 4 compiladoras, que no somos de aqui, que somos de otro lao, venimos a programar y no nos han dejao'
+# RGSEngine v0.1
 
-## Link Github:
+**RGSEngine** is a 3D game engine, the goal of this first release is to build a a geometry viewer with drag & drop, an orbital camera, and a basic UI editor made with ImGui.
 
-https://github.com/Loving-Studios/RGSEngine
+## Repository Link
 
-## Members:
+[https://github.com/Loving-Studios/RGSEngine](https://github.com/Loving-Studios/RGSEngine)
 
-https://github.com/XXPabloS
-https://github.com/TheWolfG145
-https://github.com/Claurm12
+## Team Members
 
+* **Pablo (XXPabloS):** [https://github.com/XXPabloS](https://github.com/XXPabloS)
+* **Victor (TheWolfG145):** [https://github.com/TheWolfG145](https://github.com/TheWolfG145)
+* **Claudia (Claurm12):** [https://github.com/Claurm12](https://github.com/Claurm12)
 
-# How to use
+---
 
-Como usar el motor
+## How to Use the Engine
 
-## Controls:
+### Camera Controls
 
-While right click of the mouse you can:
-	W - Forward
-	A - Left
-	S - Back
-	D - Right
+The camera system is designed to mimic the controls found in Unity:
 
-Mouse Wheel - Zoom
-Alt+Left click - Orbit the object
-F - Focus on the selected geometry
-Hold SHIFT - x2 Movement Speed
- 
-## Actions:
+* **Free Look Mode (Hold Right Mouse Button):**
+    * **Move Mouse:** Look around the scene freely.
+    * **W, A, S, D:** Fly the camera in an FPS-like style.
+    * **Hold SHIFT:** Doubles the camera's movement speed.
+* **Orbit Mode (Hold ALT + Left Mouse Button):**
+    * Orbits the camera around the currently selected `GameObject`. Orbiting is disabled if no object is selected.
+* **Zoom (Mouse Wheel):**
+    * Adjusts the camera's Field of View (FOV).
+* **Focus (Press F):**
+    * Instantly frames the currently selected `GameObject` in the center of the view.
 
-Baker_house is fully loaded when the Application starts
-Both of the models are loaded in FBX with difusor channel of texturesç
-Application accepts drag&drop with FBX files
-Application accepts drag&drop from DDS/PNG files and applies the texture to the GameObjects
+### Editor Interface
 
-There is a structure of GameObjects for each mesh loaded.
-Every GameObjects has a minimum of 3 components:
-	Transform
-	Mesh
-	Texture
+The UI is built with ImGui and features a fully dockable interface. All windows can be moved, resized, and attached to the main viewport.
 
-Camera controls from Unity camera.
+* **Hierarchy:** Lists all `GameObjects` in the scene.
+    * **Visibility Checkbox:** Allows enabling or disabling any `GameObject` (and its children). Disabled objects are not rendered or updated.
+    * **Selection:** Clicking an object selects it for the **Inspector** and sets it as the **Orbit** target.
+* **Inspector:** Displays the Components of the selected `GameObject`.
+    * **Transform:** View and **edit** the Position, Rotation (in degrees), and Scale of the object.
+    * **Mesh:** Shows mesh information (VAO/VBO/IBO IDs, Index Count).
+    * **Texture:** Shows texture information (Texture ID, Size, Path).
+* **Console:** A real-time log that captures all `LOG()` messages from the engine, including module initialization, object creation, and errors.
+* **Configuration:** Adjust engine settings and view system information.
+    * **FPS Graph:** A histogram plotting the last 100 frames.
+    * **Camera Controls:** Sliders for `Camera Speed`, `Camera Sensitivity`, and `Camera FOV`.
+    * **Window Controls:** Checkboxes for `Fullscreen`, `Borderless`, `Resizable`, and a `Reset Size` button.
+    * **Hardware & Software:** Displays CPU cores, System RAM, GPU Vendor/Renderer, VRAM (on NVIDIA cards), and all library versions (SDL3, OpenGL, ImGui, DevIL).
 
-LOGs for each process made in the application
+### Main Menu Bar
 
-FPS shown
-Information displayed of memory consumption, detection of hardware and versions of the software.
-Modules:
-	Main
-	Application
-	Module.h
-	Log
-	Input
-	Window
-	Renderer
-	Textures
-	
-Hierarchy of all GameObjects in the window displayed, can be selected
-Inspector of the GameObject:
-	Transform
-	Mesh
-	Texture
-	
-Tool Bar:
-	File, also added option to exit de app
-	View, show and hide windows
-	Help, Link to github, Report bug, Lastest Release, About window
-	Basic Geometry, menu to load basic geometry
+* **File > Exit:** Shuts down the application.
+* **View:** Toggle visibility for all editor windows. Includes a `Reset Layout` option to restore the default window docking.
+* **Create:** Create and spawn basic 2D and 3D geometric primitives (Pyramid, Cube, Sphere, etc.) into the scene.
+* **Help:** Provides links to the project's Documentation, Bug Reporter, and Releases, as well as an "About" window.
 
-# Extra Features
+---
 
-No mucho
+## Extra Features
 
-# Aditional Observations
-
-Estoy cansado jefe
+* **Editable Transform Component:** The Inspector's Transform component is not read-only; Position, Rotation, and Scale can be modified at runtime.
+* **Default Docking Layout:** The editor boots with a clean, pre-defined window layout (Hierarchy left, Inspector right) which can be restored via `View > Reset Layout`.
+* **Live Window Controls:** `Fullscreen`, `Borderless`, and `Resizable` modes can be toggled live from the Configuration panel.
+* **VRAM Monitor:** The Configuration panel includes VRAM monitoring (Total, Available, and Usage) for NVIDIA GPUs.
