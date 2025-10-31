@@ -166,6 +166,9 @@ bool ModuleEditor::Update(float dt)
     if (showConfigurationWindow)
         DrawConfigurationWindow();
 
+    if (showAboutWindow)
+        DrawAboutWindow();
+
     // Close the container window
     ImGui::End();
 
@@ -246,7 +249,28 @@ void ModuleEditor::DrawMainMenuBar()
         // --- Help Menu---
         if (ImGui::BeginMenu("Help"))
         {
-            ImGui::MenuItem("ImGui Demo", NULL, &showDemoWindow);
+            if (ImGui::MenuItem("ImGui Demo", NULL, &showDemoWindow)) {}
+
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("Documentation"))
+            {
+                //SDL_OpenURL("https://github.com/Loving-Studios/RGSEngine/tree/main/docs");
+                SDL_OpenURL("https://github.com/Loving-Studios/RGSEngine/blob/main/README.md");
+            }
+            if (ImGui::MenuItem("Report a Bug"))
+            {
+                SDL_OpenURL("https://github.com/Loving-Studios/RGSEngine/issues");
+            }
+            if (ImGui::MenuItem("Download Latest Release"))
+            {
+                SDL_OpenURL("https://github.com/Loving-Studios/RGSEngine/releases");
+            }
+
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("About RGSEngine", NULL, &showAboutWindow)) {}
+
             ImGui::EndMenu();
         }
 
@@ -574,6 +598,57 @@ void ModuleEditor::DrawConfigurationWindow()
             ImGui::Text("VRAM Info: Not available non-NVIDIA card detected");
         }
     }
+
+    ImGui::End();
+}
+
+void ModuleEditor::DrawAboutWindow()
+{
+    if (!ImGui::Begin("About RGSEngine", &showAboutWindow))
+    {
+        ImGui::End();
+        return;
+    }
+
+    ImGui::Text("RGSEngine v0.1");
+    ImGui::TextWrapped(
+        "Motores, ensambladoras, 3 o 4 compiladoras,"
+        " que no somos de aqui, que somos de otro lao,"
+        " venimos a programar y no nos han dejao"
+    );
+    ImGui::Separator();
+
+    ImGui::Text("By Loving Studios:");
+    if (ImGui::Button("XXPabloS")) { SDL_OpenURL("https://github.com/XXPabloS"); }
+    ImGui::SameLine();
+    if (ImGui::Button("TheWolfG145")) { SDL_OpenURL("https://github.com/TheWolfG145"); }
+    ImGui::SameLine();
+    if (ImGui::Button("Claurm12")) { SDL_OpenURL("https://github.com/Claurm12"); }
+
+    ImGui::Separator();
+
+    ImGui::Text("Libraries used:");
+    ImGui::BulletText("SDL3 (v%d.%d.%d)", SDL_VERSIONNUM_MAJOR(SDL_GetVersion()), SDL_VERSIONNUM_MINOR(SDL_GetVersion()), SDL_VERSIONNUM_MICRO(SDL_GetVersion()));
+    ImGui::BulletText("OpenGL (%s)", glGetString(GL_VERSION));
+    ImGui::BulletText("ImGui (%s)", ImGui::GetVersion());
+    ImGui::BulletText("glad");
+    ImGui::BulletText("glm");
+    ImGui::BulletText("assimp");
+    ImGui::BulletText("DevIL (v%d)", ilGetInteger(IL_VERSION_NUM));
+
+    ImGui::Separator();
+
+    ImGui::Text("License:");
+    ImGui::Text("MIT License");
+    ImGui::Text("Copyright (c) 2025 Loving Studios");
+    ImGui::TextWrapped(
+        "Permission is hereby granted, free of charge, to any person obtaining a copy "
+        "of this software and associated documentation files (the \"Software\"), to deal "
+        "in the Software without restriction, including without limitation the rights "
+        "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell "
+        "copies of the Software, and to permit persons to whom the Software is "
+        "furnished to do so, subject to the following conditions:"
+    );
 
     ImGui::End();
 }

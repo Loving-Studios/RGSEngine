@@ -27,6 +27,7 @@ private:
     void DrawInspectorWindow();
     void DrawConsoleWindow();
     void DrawConfigurationWindow();
+    void DrawAboutWindow();
 
     // Funtion recursive for the Hierarchy Window
     void DrawHierarchyNode(GameObject* go);
@@ -40,6 +41,7 @@ private:
     bool showInspectorWindow = true;
     bool showConsoleWindow = true;
     bool showConfigurationWindow = true;
+    bool showAboutWindow = false;
 
     // Buffer for the console
     std::streambuf* oldCerrStreamBuf;
