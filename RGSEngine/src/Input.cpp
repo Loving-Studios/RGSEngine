@@ -141,11 +141,9 @@ bool Input::PreUpdate()
 			const char* dropped_filedir = event.drop.data;
 			LOG("File dropped on window: %s", dropped_filedir);
 
-			// Pasar el archivo al módulo LoadFiles para procesarlo
+			// Pass the file to the LoadFiles module for processing
 			Application::GetInstance().loadFiles->HandleDropFile(dropped_filedir);
 
-			// Liberar la memoria asignada por SDL
-			//SDL_free(dropped_filedir);//no funciona
 		}
 		break;
 

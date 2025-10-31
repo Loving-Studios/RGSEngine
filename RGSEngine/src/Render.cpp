@@ -343,11 +343,11 @@ void Render::DrawGameObject(GameObject* go)
 	ComponentMesh* mesh = go->GetComponent<ComponentMesh>();
 	ComponentTexture* texture = go->GetComponent<ComponentTexture>();
 
-	// Solo requiere mesh y transform, textura es opcional
+	
 	if (mesh != nullptr && transform != nullptr)
 	{
 
-		// LOG TEMPORAL PARA DEBUG
+		// TEMPORARY LOG FOR DEBUG
 		static bool loggedOnce = false;
 		if (!loggedOnce && mesh->VBO_UV != 0)
 		{
@@ -369,7 +369,7 @@ void Render::DrawGameObject(GameObject* go)
 		}
 		else
 		{
-			// Usar textura de checkers por defecto
+			// Use default checker texture
 			glBindTexture(GL_TEXTURE_2D, defaultCheckerTexture);
 		}
 		shader->SetInt("tex1", 0);
@@ -470,7 +470,7 @@ void Render::CreateDefaultCheckerTexture()
 		for (int x = 0; x < texWidth; x++) {
 			int i = (y * texWidth + x) * 4;
 
-			// Cuadros de 8x8 píxeles
+			// 8x8 pixel squares
 			bool isBlack = (((x / 8) % 2) == 0) != (((y / 8) % 2) == 0);
 
 			GLubyte color = isBlack ? 50 : 200;
@@ -498,7 +498,6 @@ void Render::CreateDefaultCheckerTexture()
 
 	LOG("Default checker texture created: ID %d (%dx%d)", defaultCheckerTexture, texWidth, texHeight);
 
-	// Verificar
 	if (glIsTexture(defaultCheckerTexture))
 	{
 		LOG("Checker texture verification: OK");
