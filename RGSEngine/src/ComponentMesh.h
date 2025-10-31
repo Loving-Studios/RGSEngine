@@ -22,21 +22,21 @@ public:
         unsigned int* indices, unsigned int num_indices,
         float* texCoords = nullptr, float* normals = nullptr)
     {
-        // Limpiar buffers anteriores si existen
+        // Clear previous buffers if they exist
         CleanUp();
 
         indexCount = num_indices;
 
-        // Crear VAO
+        // Create  VAO
         glGenVertexArrays(1, &VAO);
         glBindVertexArray(VAO);
 
-        // Crear VBO para vértices
+        // Create  VBO for vertices
         glGenBuffers(1, &VBO);
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
         glBufferData(GL_ARRAY_BUFFER, sizeof(float) * num_vertices * 3, vertices, GL_STATIC_DRAW);
 
-        // Atributo 0: posiciones (x, y, z)
+        // Attribute 0: positions (x, y, z)
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
         glEnableVertexAttribArray(0);
 
@@ -46,7 +46,7 @@ public:
             glBindBuffer(GL_ARRAY_BUFFER, VBO_UV);
             glBufferData(GL_ARRAY_BUFFER, sizeof(float) * num_vertices * 2, texCoords, GL_STATIC_DRAW);
 
-            // Atributo 1: coordenadas UV (u, v)
+            // Attribute 1: UV coordinates (u, v)
             glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
             glEnableVertexAttribArray(1);
 
@@ -57,12 +57,12 @@ public:
             LOG("No UV coordinates provided");
         }
 
-        // IBO de índices
+        // Index IBO
         glGenBuffers(1, &IBO);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * num_indices, indices, GL_STATIC_DRAW);
 
-        // Desvincular VAO
+        // Unlink VAO
         glBindVertexArray(0);
 
         LOG("Mesh loaded to GPU: VAO=%d, VBO=%d, IBO=%d, Vertices=%d, Indices=%d",
