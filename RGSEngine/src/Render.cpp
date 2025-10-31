@@ -44,7 +44,7 @@ Render::Render() : Module()
 
 	isRightDragging = false;
 
-	// Initializa orbit
+	// Initialize orbit
 	isOrbiting = false;
 	orbitTarget = nullptr;
 	orbitCenter = glm::vec3(0.0f);
