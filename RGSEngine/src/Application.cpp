@@ -88,9 +88,6 @@ bool Application::Update() {
 
     if (input->GetWindowEvent(WE_QUIT) == true)
         ret = false;
-    // ESC key to exit the game, when imgui is implemented remove this line.
-    if (input->GetKey(SDL_SCANCODE_ESCAPE) == KEY_DOWN)
-        ret = false;
 
     if (ret == true)
         ret = PreUpdate();
