@@ -246,6 +246,26 @@ void ModuleEditor::DrawMainMenuBar()
             ImGui::EndMenu();
         }
 
+        if (ImGui::BeginMenu("Create"))
+        {
+            if (ImGui::BeginMenu("2D Primitives"))
+            {
+                if (ImGui::MenuItem("Triangle")) { Application::GetInstance().scene->CreateTriangle(); }
+                if (ImGui::MenuItem("Square")) { Application::GetInstance().scene->CreateSquare(); }
+                if (ImGui::MenuItem("Rectangle")) { Application::GetInstance().scene->CreateRectangle(); }
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("3D Primitives"))
+            {
+                if (ImGui::MenuItem("Pyramid")) { Application::GetInstance().scene->CreatePyramid(); }
+                if (ImGui::MenuItem("Cube")) { Application::GetInstance().scene->CreateCube(); }
+                if (ImGui::MenuItem("Prism")) { Application::GetInstance().scene->CreatePrism(); }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenu();
+        }
+
         // --- Help Menu---
         if (ImGui::BeginMenu("Help"))
         {
@@ -302,6 +322,18 @@ void ModuleEditor::DrawHierarchyNode(GameObject* go)
 {
     if (go == nullptr) return;
 
+    // SceneRoot cannot be desactivated
+    if (go->GetParent() != nullptr)
+    {
+        // The checkbox is unique for this object
+        ImGui::PushID(go);
+
+        ImGui::Checkbox("##active", &go->active);
+
+        ImGui::PopID();
+        ImGui::SameLine();
+    }
+
     // Configuration the flags for the TreeNode
     ImGuiTreeNodeFlags nodeFlags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
 
@@ -317,8 +349,20 @@ void ModuleEditor::DrawHierarchyNode(GameObject* go)
         nodeFlags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
     }
 
+    // If the object is inactive is drawn grey
+    if (!go->active)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+    }
+
     // Draw the TreeNode
     bool nodeOpen = ImGui::TreeNodeEx(go->GetName().c_str(), nodeFlags);
+
+    // Remove grey color
+    if (!go->active)
+    {
+        ImGui::PopStyleColor();
+    }
 
     // Check if the user has made click on the node
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())

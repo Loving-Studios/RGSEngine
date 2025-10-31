@@ -16,7 +16,12 @@ public:
     bool CleanUp() override;
 
     // Test function for the pyramid
-    void CreateTestPyramid();
+    void CreatePyramid();
+    void CreateTriangle();
+    void CreateSquare();
+    void CreateRectangle();
+    void CreateCube();
+    void CreatePrism();
 
 public:
     // This is a Smart Pointer for the rootObject
