@@ -300,9 +300,6 @@ std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* 
             meshData.texCoords, meshData.normals);
         meshObject->AddComponent(compMesh);
 
-        //AutoScaleGameObject(meshObject, meshData);
-
-
         LoadMaterialTextures(scene, mesh, meshObject, fbxDirectory);
 
         delete[] meshData.vertices;
@@ -417,8 +414,6 @@ std::shared_ptr<GameObject> LoadFiles::CreateGameObjectFromMesh(const MeshData& 
         meshData.indices, meshData.num_indices,
         meshData.texCoords, meshData.normals);
     gameObject->AddComponent(compMesh);
-
-    //AutoScaleGameObject(gameObject, meshData);
 
     return gameObject;
 }
