@@ -260,7 +260,7 @@ void ModuleEditor::DrawMainMenuBar()
             {
                 if (ImGui::MenuItem("Pyramid")) { Application::GetInstance().scene->CreatePyramid(); }
                 if (ImGui::MenuItem("Cube")) { Application::GetInstance().scene->CreateCube(); }
-                if (ImGui::MenuItem("Prism")) { Application::GetInstance().scene->CreatePrism(); }
+                if (ImGui::MenuItem("Sphere")) { Application::GetInstance().scene->CreateSphere(); }
                 ImGui::EndMenu();
             }
             ImGui::EndMenu();

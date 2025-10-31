@@ -334,51 +334,7 @@ void ModuleScene::CreateCube()
     rootObject->AddChild(go);
 }
 
-void ModuleScene::CreatePrism()
+void ModuleScene::CreateSphere()
 {
-    LOG("Creating Test Prism");
-    auto go = std::make_shared<GameObject>("Prism");
-    go->AddComponent(std::make_shared<ComponentTransform>(go.get()));
-    auto mesh = std::make_shared<ComponentMesh>(go.get());
 
-    // Same as the cube but more width
-    float vertices[] = {
-        -1.0f, -0.5f,  0.5f, 0.0f, 0.0f, // 0
-         1.0f, -0.5f,  0.5f, 1.0f, 0.0f, // 1
-         1.0f,  0.5f,  0.5f, 1.0f, 1.0f, // 2
-        -1.0f,  0.5f,  0.5f, 0.0f, 1.0f, // 3
-        -1.0f, -0.5f, -0.5f, 1.0f, 0.0f, // 4
-         1.0f, -0.5f, -0.5f, 0.0f, 0.0f, // 5
-         1.0f,  0.5f, -0.5f, 0.0f, 1.0f, // 6
-        -1.0f,  0.5f, -0.5f, 1.0f, 1.0f  // 7
-    };
-    unsigned int indices[] = {
-        0, 1, 2,  0, 2, 3, // Fornt
-        5, 4, 7,  5, 7, 6, // Back
-        3, 2, 6,  3, 6, 7, // Up
-        4, 5, 1,  4, 1, 0, // Down
-        1, 5, 6,  1, 6, 2, // Right
-        4, 0, 3,  4, 3, 7  // Left
-    };
-    mesh->indexCount = 36;
-
-    glGenVertexArrays(1, &mesh->VAO);
-    glGenBuffers(1, &mesh->VBO);
-    glGenBuffers(1, &mesh->IBO);
-    glBindVertexArray(mesh->VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->IBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    glBindVertexArray(0);
-
-    go->AddComponent(mesh);
-    auto texture = std::make_shared<ComponentTexture>(go.get());
-    CreateDefaultCheckerTexture(texture);
-    go->AddComponent(texture);
-    rootObject->AddChild(go);
 }

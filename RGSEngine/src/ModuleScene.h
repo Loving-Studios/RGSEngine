@@ -21,7 +21,7 @@ public:
     void CreateSquare();
     void CreateRectangle();
     void CreateCube();
-    void CreatePrism();
+    void CreateSphere();
 
     void AddGameObject(std::shared_ptr<GameObject> gameObject);
 
