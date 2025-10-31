@@ -75,6 +75,7 @@ bool LoadFiles::PostUpdate()
 bool LoadFiles::CleanUp()
 {
     LOG("Cleaning up LoadFiles module");
+    ilShutDown();
     return true;
 }
 
