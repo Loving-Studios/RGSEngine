@@ -34,6 +34,8 @@ private:
 
     void ApplyDefaultDockingLayout();
 
+    void UpdateMemoryStats();
+
     bool showDemoWindow = false;
     bool firstTimeLayout = true;
 
@@ -53,6 +55,8 @@ private:
     // The GameObject selected
     GameObject* selectedGameObject = nullptr;
 
+    bool isNVIDIA = false;     // So we don't need to call glGetString on each frame
     int vram_budget_mb = 0;    // VRAM Total
     int vram_available_mb = 0; // VRAM Available
+    int ram_usage_mb = 0;      // RAM used on the process
 };
