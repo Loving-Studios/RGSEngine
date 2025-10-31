@@ -20,6 +20,7 @@
 #include "ComponentTexture.h"
 
 #include <IL/il.h>
+#include <glm/gtc/type_ptr.hpp>
 
 ModuleEditor::ModuleEditor() : Module(), oldCerrStreamBuf(nullptr)
 {
@@ -344,16 +345,22 @@ void ModuleEditor::DrawInspectorWindow()
         {
             // Cast to access all of the data
             ComponentTransform* transform = static_cast<ComponentTransform*>(component.get());
-            if (ImGui::CollapsingHeader("Transform"))
+            if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) // Open by default
             {
-                // Show the info, only lecture mode
-                ImGui::InputFloat3("Position", (float*)&transform->position, "%.3f", ImGuiInputTextFlags_ReadOnly);
+                // Use of DragFloat3 to have best control
+                if (ImGui::DragFloat3("Position", (float*)&transform->position, 0.1f))
+                {}
+                // Convert the quaternion into Euler Angles in degrees for the UI
+                glm::vec3 eulerAngles = glm::degrees(glm::eulerAngles(transform->rotation));
 
-                // Show the quaternion, lecture mode
-                ImGui::Text("Rotation: (%.3f, %.3f, %.3f, %.3f)",
-                    transform->rotation.x, transform->rotation.y, transform->rotation.z, transform->rotation.w);
-
-                ImGui::InputFloat3("Scale", (float*)&transform->scale, "%.3f", ImGuiInputTextFlags_ReadOnly);
+                // Show the DragFloat3 for the degrees
+                if (ImGui::DragFloat3("Rotation", (float*)&eulerAngles, 1.0f))
+                {
+                    // If the user changes it, convert back to quaternion with glm::radians that converts degrees to radians
+                    transform->SetRotation(glm::quat(glm::radians(eulerAngles)));
+                }
+                if (ImGui::DragFloat3("Scale", (float*)&transform->scale, 0.1f))
+                {}
             }
             break;
         }
