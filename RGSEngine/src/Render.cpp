@@ -56,6 +56,7 @@ Render::Render() : Module()
 	defaultCheckerTexture = 0;
 
 	drawVertexNormals = false;
+	drawFaceNormals = false;
 
 	// Initialize camera rotation
 	cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
@@ -344,6 +345,7 @@ bool Render::Update(float dt)
 	normalsShader->SetMat4("view", view);
 	normalsShader->SetMat4("projection", projection);
 
+	shader->Use();
 	// Obtain the rootObject of the scene
 	std::shared_ptr<GameObject> root = Application::GetInstance().scene->rootObject;
 	// Start the process to draw recursive
@@ -415,19 +417,18 @@ void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 		// Unlink the texture
 		glBindTexture(GL_TEXTURE_2D, 0);
 
-		if (drawVertexNormals)
+		if (drawVertexNormals || drawFaceNormals)
 		{
 			// Use the shader of the normals
 			normalsShader->Use();
 			// Send the model matrix
 			normalsShader->SetMat4("model", globalTransform);
 
-			// Draw the lines of the normals
-			mesh->DrawNormals();
+			if (drawVertexNormals) mesh->DrawNormals();
+			if (drawFaceNormals)   mesh->DrawFaceNormals();
 		}
 	}
 
-	// 6. Repeat the process for all the Childrens
 	for (const auto& child : go->GetChildren())
 	{
 		DrawGameObject(child.get(), globalTransform);

@@ -4,6 +4,7 @@
 #include <glad/glad.h>
 #include "Log.h"
 #include <vector>
+#include <glm/glm.hpp>
 
 class ComponentMesh : public Component
 {
@@ -12,7 +13,8 @@ public:
         : Component(owner, ComponentType::MESH),
         VAO(0), VBO(0), IBO(0), VBO_UV(0), VBO_Normals(0),
         indexCount(0),
-        normalsVAO(0), normalsVBO(0), normalVertexCount(0)
+        normalsVAO(0), normalsVBO(0), normalVertexCount(0),
+        faceNormalsVAO(0), faceNormalsVBO(0), faceNormalVertexCount(0)
     {
     }
 
@@ -83,6 +85,10 @@ public:
             LOG("No normals provided");
         }
 
+        SetupFaceNormalsBuffers(vertices, num_vertices, indices, num_indices);
+
+        glBindVertexArray(VAO);
+
         // Index IBO
         glGenBuffers(1, &IBO);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
@@ -132,6 +138,64 @@ public:
         LOG("Normals visualization buffers created: VAO=%d, VBO=%d, Lines=%d", normalsVAO, normalsVBO, num_vertices);
     }
 
+    void SetupFaceNormalsBuffers(float* vertices, unsigned int num_vertices, unsigned int* indices, unsigned int num_indices)
+    {
+        if (num_indices == 0 || vertices == nullptr || indices == nullptr) return;
+
+        const float NORMAL_LINE_LENGTH = 0.2f;
+        std::vector<float> lineData;
+
+        // Iterate for each triangle
+        for (unsigned int i = 0; i < num_indices; i += 3)
+        {
+            // Obtain the index of the 3 vertexs of the triangle
+            unsigned int idx0 = indices[i];
+            unsigned int idx1 = indices[i + 1];
+            unsigned int idx2 = indices[i + 2];
+
+            // Obtain the XYZ coords of the 3 vertexs
+            glm::vec3 v0(vertices[idx0 * 3], vertices[idx0 * 3 + 1], vertices[idx0 * 3 + 2]);
+            glm::vec3 v1(vertices[idx1 * 3], vertices[idx1 * 3 + 1], vertices[idx1 * 3 + 2]);
+            glm::vec3 v2(vertices[idx2 * 3], vertices[idx2 * 3 + 1], vertices[idx2 * 3 + 2]);
+
+            // Calculate the center
+            glm::vec3 center = (v0 + v1 + v2) / 3.0f;
+
+            // Calculate the normal of the face, cross product of 2 edges
+            glm::vec3 edge1 = v1 - v0;
+            glm::vec3 edge2 = v2 - v0;
+            glm::vec3 normal = glm::normalize(glm::cross(edge1, edge2));
+
+            // Starting point, center
+            lineData.push_back(center.x);
+            lineData.push_back(center.y);
+            lineData.push_back(center.z);
+
+            // Ending point (center + normal * Length)
+            glm::vec3 endPoint = center + normal * NORMAL_LINE_LENGTH;
+            lineData.push_back(endPoint.x);
+            lineData.push_back(endPoint.y);
+            lineData.push_back(endPoint.z);
+        }
+
+        faceNormalVertexCount = lineData.size() / 3;
+
+        // Create VAO and VBO for the normal faces
+        glGenVertexArrays(1, &faceNormalsVAO);
+        glBindVertexArray(faceNormalsVAO);
+
+        glGenBuffers(1, &faceNormalsVBO);
+        glBindBuffer(GL_ARRAY_BUFFER, faceNormalsVBO);
+        glBufferData(GL_ARRAY_BUFFER, lineData.size() * sizeof(float), lineData.data(), GL_STATIC_DRAW);
+
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+
+        glBindVertexArray(0);
+
+        LOG("Face Normals generated: %d lines", faceNormalVertexCount / 2);
+    }
+
     // Function to draw the mesh
     void Draw()
     {
@@ -150,6 +214,17 @@ public:
             glBindVertexArray(normalsVAO);
             // Draw GL_LINES, using the VBO prepared on the SetupNormalsBuffers
             glDrawArrays(GL_LINES, 0, normalVertexCount);
+            glBindVertexArray(0);
+        }
+    }
+
+    void DrawFaceNormals()
+    {
+        if (faceNormalsVAO != 0 && faceNormalVertexCount > 0)
+        {
+            glBindVertexArray(faceNormalsVAO);
+            // Draw GL_LINES, using the VBO prepared on the SetupFaceNormalsBuffers
+            glDrawArrays(GL_LINES, 0, faceNormalVertexCount);
             glBindVertexArray(0);
         }
     }
@@ -187,6 +262,17 @@ public:
             normalsVBO = 0;
         }
         normalVertexCount = 0;
+        if (faceNormalsVAO != 0)
+        {
+            glDeleteVertexArrays(1, &faceNormalsVAO);
+            faceNormalsVAO = 0;
+        }
+        if (faceNormalsVBO != 0)
+        {
+            glDeleteBuffers(1, &faceNormalsVBO);
+            faceNormalsVBO = 0;
+        }
+        faceNormalVertexCount = 0;
         if (IBO != 0)
         {
             glDeleteBuffers(1, &IBO);
@@ -206,4 +292,8 @@ public:
     unsigned int normalsVAO;
     unsigned int normalsVBO;
     unsigned int normalVertexCount;
+
+    unsigned int faceNormalsVAO;
+    unsigned int faceNormalsVBO;
+    unsigned int faceNormalVertexCount;
 };

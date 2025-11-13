@@ -48,6 +48,7 @@ public:
 	float cameraFOV;      // Field of view
 
 	bool drawVertexNormals;
+	bool drawFaceNormals;
 
 	void ProcessKeyboardMovement(float dt);
 	void FocusOnGameObject(GameObject* go);

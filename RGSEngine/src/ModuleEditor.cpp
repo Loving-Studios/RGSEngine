@@ -447,9 +447,9 @@ void ModuleEditor::DrawInspectorWindow()
                     // Enter the public variable of ModuleRender
                     ImGui::Checkbox("Show Vertex Normals", &Application::GetInstance().render->drawVertexNormals);
                 }
-                else
+                if (mesh->faceNormalsVAO != 0)
                 {
-                    ImGui::Text("Normals: Not loaded");
+                    ImGui::Checkbox("Show Face Normals", &Application::GetInstance().render->drawFaceNormals);
                 }
             }
             break;
