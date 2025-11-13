@@ -20,6 +20,8 @@ public:
     bool PostUpdate() override;
     bool CleanUp() override;
 
+    GameObject* GetSelectedGameObject() const { return selectedGameObject; }
+
 private:
     // Functions to draw the windows
     void DrawMainMenuBar();

@@ -24,7 +24,7 @@ public:
     bool CleanUp();
 
     std::shared_ptr<GameObject> LoadFBX(const char* file_path);
-    bool LoadTexture(const char* file_path);
+    bool LoadTexture(const char* file_path, GameObject* target = nullptr);
     void HandleDropFile(const char* file_path);
 
 private:

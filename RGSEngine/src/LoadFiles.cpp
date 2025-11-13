@@ -1,5 +1,6 @@
 #include "LoadFiles.h"
 #include "Application.h"
+#include "ModuleEditor.h"
 #include "GameObject.h"
 #include "ComponentMesh.h"
 #include "ComponentTransform.h"
@@ -173,11 +174,17 @@ void LoadFiles::HandleDropFile(const char* file_path)
     else if (extension == "dds" || extension == "png" || extension == "jpg" || extension == "jpeg")
     {
         LOG("Detected texture file (%s), loading...", extension.c_str());
-         LoadTexture(file_path);
-    }
-    else
-    {
-        LOG("Unsupported file format: %s", extension.c_str());
+
+        GameObject* selected = Application::GetInstance().editor->GetSelectedGameObject();
+
+        if (selected != nullptr)
+        {
+            LoadTexture(file_path, selected);
+        }
+        else
+        {
+            LOG("WARNING: No GameObject selected. Please select an object in the Hierarchy to apply the texture.");
+        }
     }
 }
 
@@ -559,10 +566,16 @@ unsigned int LoadFiles::LoadTextureFromFile(const char* file_path)
     return textureID;
 }
 
-bool LoadFiles::LoadTexture(const char* file_path)
+bool LoadFiles::LoadTexture(const char* file_path, GameObject* target)
 {
     LOG("=== DRAG & DROP TEXTURE ===");
     LOG("Loading texture: %s", file_path);
+
+    if (target == nullptr)
+    {
+        LOG("Error: No target GameObject provided for texture loading.");
+        return false;
+    }
 
     unsigned int textureID = LoadTextureFromFile(file_path);
 
@@ -574,11 +587,35 @@ bool LoadFiles::LoadTexture(const char* file_path)
 
     LOG("Texture loaded successfully (ID: %d)", textureID);
 
-
-    std::shared_ptr<GameObject> root = Application::GetInstance().scene->rootObject;
-    if (root)
+    // Check if the Component has a Mesh to apply the texture
+    if (target->GetComponent<ComponentMesh>() != nullptr)
     {
-        ApplyTextureToAllChildren(root, textureID, file_path);
+        auto textureComp = target->GetComponent<ComponentTexture>();
+
+        if (textureComp != nullptr)
+        {
+            // If has a component, update the data
+            textureComp->textureID = textureID;
+            textureComp->path = file_path;
+            // Remove the default flag to see the new one
+            textureComp->useDefaultTexture = false;
+
+            LOG("Texture component UPDATED on GameObject: %s", target->GetName().c_str());
+        }
+        else
+        {
+            // If doesn't have a component, assign a new one
+            auto newTex = std::make_shared<ComponentTexture>(target);
+            newTex->textureID = textureID;
+            newTex->path = file_path;
+            target->AddComponent(newTex);
+
+            LOG("Texture component ADDED to GameObject: %s", target->GetName().c_str());
+        }
+    }
+    else
+    {
+        LOG("WARNING: Selected object '%s' has no Mesh. Texture loaded but not applied.", target->GetName().c_str());
     }
 
     return true;
