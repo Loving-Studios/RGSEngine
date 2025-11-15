@@ -22,6 +22,7 @@
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
 #include "ComponentTexture.h"
+#include "ImGuizmo.h"
 
 #include <IL/il.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -63,6 +64,9 @@ bool ModuleEditor::Start()
     ImGui_ImplSDL3_InitForOpenGL(window, glContext);
     ImGui_ImplOpenGL3_Init("#version 460"); // Force to use the same version of the shader
 
+    mCurrentGizmoOperation = ImGuizmo::TRANSLATE;
+    mCurrentGizmoMode = ImGuizmo::WORLD;
+
     // Only check once if it's NVIDIA
     if (strstr((const char*)glGetString(GL_VENDOR), "NVIDIA"))
     {
@@ -78,6 +82,8 @@ bool ModuleEditor::PreUpdate()
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
+
+    ImGuizmo::BeginFrame();
 
     return true;
 }
@@ -118,6 +124,17 @@ bool ModuleEditor::Update(float dt)
         Application::GetInstance().render->SetOrbitTarget(nullptr);
     }
 
+    // ImGuizmo
+    if (!ImGui::IsAnyItemActive())
+    {
+        if (input->GetKey(SDL_SCANCODE_W) == KEY_DOWN)
+            mCurrentGizmoOperation = ImGuizmo::TRANSLATE;
+        if (input->GetKey(SDL_SCANCODE_E) == KEY_DOWN)
+            mCurrentGizmoOperation = ImGuizmo::ROTATE;
+        if (input->GetKey(SDL_SCANCODE_R) == KEY_DOWN)
+            mCurrentGizmoOperation = ImGuizmo::SCALE;
+    }
+
     // --- DRAW THE INTERFACE ---
     // Configuration of the window that occupies the entire main screen
     ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -134,6 +151,37 @@ bool ModuleEditor::Update(float dt)
     // Start the Container Window
     // Flagged as ImGuiWindowFlags_MenuBar so it can host the main menu
     ImGui::Begin("DockSpace", nullptr, window_flags);
+
+    // ImGuizmo only used if there is a GameObject selected with transform
+    ComponentTransform* targetTransform = (selectedGameObject) ? selectedGameObject->GetComponent<ComponentTransform>() : nullptr;
+    if (targetTransform != nullptr)
+    {
+        // ImGuizmo area of drawing
+        ImGuizmo::SetOrthographic(false);
+        ImGuizmo::SetDrawlist();
+        ImGuizmo::SetRect(viewport->Pos.x, viewport->Pos.y, viewport->Size.x, viewport->Size.y);
+
+        // Obtain the camera matrix from render
+        const glm::mat4& viewMatrix = Application::GetInstance().render->GetViewMatrix();
+        const glm::mat4& projectionMatrix = Application::GetInstance().render->GetProjectionMatrix();
+
+        // Obtain the global matrix of the object
+        glm::mat4 modelMatrix = selectedGameObject->GetGlobalMatrix();
+
+        // Call the funtion Manipulate() and glm::value_ptr converts GLM matrix to ImGuizmo float
+        ImGuizmo::Manipulate(glm::value_ptr(viewMatrix),
+            glm::value_ptr(projectionMatrix),
+            mCurrentGizmoOperation,
+            mCurrentGizmoMode,
+            glm::value_ptr(modelMatrix));
+
+        // Check if the user has used the ImGuizmo
+        if (ImGuizmo::IsUsing())
+        {
+            // If is moved, update the transform of the object
+            selectedGameObject->SetLocalFromGlobal(modelMatrix);
+        }
+    }
 
     // --- WINDOWS ---
     // Main menu is drawed inside ImGui::Begin
@@ -306,12 +354,14 @@ void ModuleEditor::DrawHierarchyWindow()
         return;
     }
 
+    // Create Empty GameOject
     if (ImGui::Button("Create Empty"))
     {
         Application::GetInstance().scene->CreateEmptyGameObject();
 
     }
 
+    // Delete GameOject
     if (selectedGameObject != nullptr && selectedGameObject->GetParent() != nullptr)
     {
         Input* input = Application::GetInstance().input.get();
@@ -328,6 +378,20 @@ void ModuleEditor::DrawHierarchyWindow()
             selectedGameObject = nullptr;
         }
     }
+
+    // ImGuizmo controls
+    if (ImGui::RadioButton("Translate - W", mCurrentGizmoOperation == ImGuizmo::TRANSLATE))
+        mCurrentGizmoOperation = ImGuizmo::TRANSLATE;
+    if (ImGui::RadioButton("Rotate - E", mCurrentGizmoOperation == ImGuizmo::ROTATE))
+        mCurrentGizmoOperation = ImGuizmo::ROTATE;
+    if (ImGui::RadioButton("Scale - R", mCurrentGizmoOperation == ImGuizmo::SCALE))
+        mCurrentGizmoOperation = ImGuizmo::SCALE;
+
+    if (ImGui::RadioButton("World", mCurrentGizmoMode == ImGuizmo::WORLD))
+        mCurrentGizmoMode = ImGuizmo::WORLD;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Local", mCurrentGizmoMode == ImGuizmo::LOCAL))
+        mCurrentGizmoMode = ImGuizmo::LOCAL;
 
     ImGui::Separator();
 

@@ -7,6 +7,8 @@
 #include "Log.h"
 #include "UIDGenerator.h"
 #include <cstdint>
+#include "ComponentTransform.h"
+#include <glm/glm.hpp>
 
 // std::shared_ptr so the memory of the components and childens is auto managed
 using std::string;
@@ -89,6 +91,57 @@ public:
         );
 
         child->parent = nullptr; // Break the link with the parent
+    }
+
+    // Calculate the matrix of the transform world
+    glm::mat4 GetGlobalMatrix()
+    {
+        ComponentTransform* transform = GetComponent<ComponentTransform>();
+        glm::mat4 localMatrix = (transform != nullptr) ? transform->GetModelMatrix() : glm::mat4(1.0f);
+
+        if (parent != nullptr)
+        {
+            // Multiply the global matrix of the parent for the local matrix of the object
+            return parent->GetGlobalMatrix() * localMatrix;
+        }
+        else
+        {
+            // If theres no parent, its SceneRoot, the local matrix is the global matrix
+            return localMatrix;
+        }
+    }
+
+    // ImGuizmo provides the new global matrix, needs to be calculated the local matrix of the object and separate the position, rotation and scale
+    void SetLocalFromGlobal(const glm::mat4& newGlobalMatrix)
+    {
+        ComponentTransform* transform = GetComponent<ComponentTransform>();
+        if (transform == nullptr) return;
+
+        // Calculate the global matrix of the parent
+        glm::mat4 parentGlobalMatrix = (parent != nullptr) ? parent->GetGlobalMatrix() : glm::mat4(1.0f);
+
+        // Calculate the new local matrix newLocal = inverse(parentGlobal) * newGlobal
+        glm::mat4 newLocalMatrix = glm::inverse(parentGlobalMatrix) * newGlobalMatrix;
+
+        // Separate the local matrix on position, rotation and scale
+        glm::vec3 newPos, newScale, skew;
+        glm::quat newRot;
+        glm::vec4 perspective;
+
+        // Check if the decompose was successful
+        if (glm::decompose(newLocalMatrix, newScale, newRot, newPos, skew, perspective))
+        {
+            // Define minimum scale to avoid negative scale
+            const float MIN_SCALE = 0.001f;
+            if (newScale.x < MIN_SCALE) newScale.x = MIN_SCALE;
+            if (newScale.y < MIN_SCALE) newScale.y = MIN_SCALE;
+            if (newScale.z < MIN_SCALE) newScale.z = MIN_SCALE;
+
+            // Assign the new values to the transform
+            transform->SetPosition(newPos);
+            transform->SetRotation(newRot);
+            transform->SetScale(newScale);
+        }
     }
 
     // --- Getters and Setters ---

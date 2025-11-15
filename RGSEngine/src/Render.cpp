@@ -326,24 +326,22 @@ bool Render::Update(float dt)
 		ProcessKeyboardMovement(dt);
 	}
 
-	//glm::mat4 model = glm::mat4(1.0f);
-	// Creo que esta linea ya no hace falta
-	glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+	viewMatrix = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 	// Create perspective projection
 	int width, height;
 	Application::GetInstance().window->GetWindowSize(width, height);
-	glm::mat4 projection = glm::perspective(glm::radians(cameraFOV), (float)width / (float)height, 0.1f, 100.0f);
+	projectionMatrix = glm::perspective(glm::radians(cameraFOV), (float)width / (float)height, 0.1f, 100.0f);
 
 	shader->Use();
 
 	// Send matrix to shader
 	shader->Use();
-	shader->SetMat4("view", view);
-	shader->SetMat4("projection", projection);
+	shader->SetMat4("view", viewMatrix);
+	shader->SetMat4("projection", projectionMatrix);
 
 	normalsShader->Use();
-	normalsShader->SetMat4("view", view);
-	normalsShader->SetMat4("projection", projection);
+	normalsShader->SetMat4("view", viewMatrix);
+	normalsShader->SetMat4("projection", projectionMatrix);
 
 	shader->Use();
 	// Obtain the rootObject of the scene

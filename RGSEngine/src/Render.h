@@ -57,6 +57,9 @@ public:
 	void SetOrbitTarget(GameObject* go);
 	GameObject* GetOrbitTarget() const { return orbitTarget; }
 
+	const glm::mat4& GetViewMatrix() const { return viewMatrix; }
+	const glm::mat4& GetProjectionMatrix() const { return projectionMatrix; }
+
 private:
 
 	// Shader
@@ -95,5 +98,8 @@ private:
 	void DrawGameObject(GameObject* go, const glm::mat4& parentTransform);
 
 	void CreateDefaultCheckerTexture();
+
+	glm::mat4 viewMatrix;
+	glm::mat4 projectionMatrix;
 };
 

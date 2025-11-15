@@ -5,6 +5,7 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include "ImGuizmo.h"
 
 class GameObject;
 
@@ -35,6 +36,9 @@ private:
     void DrawHierarchyNode(GameObject* go);
 
     void ApplyDefaultDockingLayout();
+
+    ImGuizmo::OPERATION mCurrentGizmoOperation;
+    ImGuizmo::MODE mCurrentGizmoMode;
 
     void UpdateMemoryStats();
 
