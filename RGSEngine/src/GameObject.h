@@ -5,6 +5,8 @@
 #include <memory>
 #include "Component.h"
 #include "Log.h"
+#include "UIDGenerator.h"
+#include <cstdint>
 
 // std::shared_ptr so the memory of the components and childens is auto managed
 using std::string;
@@ -14,7 +16,7 @@ using std::shared_ptr;
 class GameObject
 {
 public:
-    GameObject(string name) : name(name), parent(nullptr), active(true) {}
+    GameObject(string name) : name(name), parent(nullptr), active(true), uid(UIDGenerator::GenerateUID()) {}
 
     ~GameObject()
     {
@@ -86,6 +88,7 @@ public:
     string name;
     bool active;
     GameObject* parent; // Pointer to the father, we don't use here the shared_ptr to avoid loops
+    uint64_t uid;
 
     vector<shared_ptr<Component>> components;
     vector<shared_ptr<GameObject>> children;

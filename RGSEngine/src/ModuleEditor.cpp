@@ -321,6 +321,8 @@ void ModuleEditor::DrawHierarchyNode(GameObject* go)
 {
     if (go == nullptr) return;
 
+    ImGui::PushID(go);
+
     // SceneRoot cannot be desactivated
     if (go->GetParent() != nullptr)
     {
@@ -378,6 +380,8 @@ void ModuleEditor::DrawHierarchyNode(GameObject* go)
         }
         ImGui::TreePop(); // Close the node
     }
+
+    ImGui::PopID();
 }
 
 void ModuleEditor::DrawInspectorWindow()
@@ -400,6 +404,7 @@ void ModuleEditor::DrawInspectorWindow()
 
     // Show the name
     ImGui::Text("GameObject: %s", selectedGameObject->GetName().c_str());
+    ImGui::Text("UID: %llu", selectedGameObject->uid);
     ImGui::Separator();
 
     // Iterate all of the components
