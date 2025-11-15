@@ -77,6 +77,20 @@ public:
         }
     }
 
+    void RemoveChild(GameObject* child)
+    {
+        if (child == nullptr) return;
+
+        // Search the shared_ptr matching with the pointer and delete
+        children.erase(
+            std::remove_if(children.begin(), children.end(),
+                [child](const shared_ptr<GameObject>& p) { return p.get() == child; }),
+            children.end()
+        );
+
+        child->parent = nullptr; // Break the link with the parent
+    }
+
     // --- Getters and Setters ---
     const string& GetName() const { return name; }
     GameObject* GetParent() const { return parent; }

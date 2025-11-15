@@ -23,6 +23,8 @@ public:
     void CreateCube();
     void CreateSphere();
 
+    void CreateEmptyGameObject();
+
     void AddGameObject(std::shared_ptr<GameObject> gameObject);
 
 public:

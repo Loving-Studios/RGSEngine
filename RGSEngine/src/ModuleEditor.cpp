@@ -306,6 +306,31 @@ void ModuleEditor::DrawHierarchyWindow()
         return;
     }
 
+    if (ImGui::Button("Create Empty"))
+    {
+        Application::GetInstance().scene->CreateEmptyGameObject();
+
+    }
+
+    if (selectedGameObject != nullptr && selectedGameObject->GetParent() != nullptr)
+    {
+        Input* input = Application::GetInstance().input.get();
+
+        if (input->GetKey(SDL_SCANCODE_DELETE) == KEY_DOWN)
+        {
+            LOG("Deleting GameObject: %s (UID: %llu)",
+                selectedGameObject->GetName().c_str(), selectedGameObject->uid);
+
+            // Inform the parent to delete the children selected
+            selectedGameObject->GetParent()->RemoveChild(selectedGameObject);
+
+            // Deselect the object
+            selectedGameObject = nullptr;
+        }
+    }
+
+    ImGui::Separator();
+
     // Obtain the rootObject of the scene
     GameObject* root = Application::GetInstance().scene->rootObject.get();
     if (root)

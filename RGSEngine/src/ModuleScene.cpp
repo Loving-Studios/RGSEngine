@@ -407,3 +407,15 @@ void ModuleScene::CreateSphere()
     go->AddComponent(texture);
     rootObject->AddChild(go);
 }
+
+void ModuleScene::CreateEmptyGameObject()
+{
+    LOG("Creating Empty GameObject");
+    auto go = std::make_shared<GameObject>("GameObject_empty");
+
+    // Empty object must have a transform
+    go->AddComponent(std::make_shared<ComponentTransform>(go.get()));
+
+    // Add GameObject to the root of the scene
+    AddGameObject(go);
+}
