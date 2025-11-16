@@ -22,6 +22,7 @@
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
 #include "ComponentTexture.h"
+#include "ComponentCamera.h"
 #include "ImGuizmo.h"
 
 #include <IL/il.h>
@@ -105,7 +106,7 @@ bool ModuleEditor::Update(float dt)
     // Update stats of memory on each frame
     UpdateMemoryStats();
 
-    // --- FOCUS ON SELECTED GAMEOBJECT ---
+    // FOCUS ON SELECTED GAMEOBJECT
     Input* input = Application::GetInstance().input.get();
 
     // Process F key if an object is selected
@@ -113,15 +114,24 @@ bool ModuleEditor::Update(float dt)
     {
         if (input->GetKey(SDL_SCANCODE_F) == KEY_DOWN)
         {
-            Application::GetInstance().render->FocusOnGameObject(selectedGameObject);
+            // Obtain the render module
+            Render* render = Application::GetInstance().render.get();
+
+            // Get the mainCamera
+            ComponentCamera* mainCamera = render->GetMainCamera();
+
+            if (mainCamera != nullptr)
+            {
+                // Obtain the transform of the camera
+                ComponentTransform* cameraTransform = mainCamera->owner->GetComponent<ComponentTransform>();
+                if (cameraTransform != nullptr)
+                {
+                    render->FocusOnGameObject(selectedGameObject, cameraTransform);
+                }
+            }
         }
         // Set object as orbit target when selected
         Application::GetInstance().render->SetOrbitTarget(selectedGameObject);
-    }
-    else
-    {
-        // If nothing is selected, clear the orbit target
-        Application::GetInstance().render->SetOrbitTarget(nullptr);
     }
 
     // ImGuizmo
@@ -161,9 +171,19 @@ bool ModuleEditor::Update(float dt)
         ImGuizmo::SetDrawlist();
         ImGuizmo::SetRect(viewport->Pos.x, viewport->Pos.y, viewport->Size.x, viewport->Size.y);
 
-        // Obtain the camera matrix from render
-        const glm::mat4& viewMatrix = Application::GetInstance().render->GetViewMatrix();
-        const glm::mat4& projectionMatrix = Application::GetInstance().render->GetProjectionMatrix();
+        ComponentCamera* activeCamera = Application::GetInstance().render->GetMainCamera();
+        if (activeCamera == nullptr)
+        {
+            // Don't render the gizmo if theres no camera, bug prevent
+            ImGui::End(); // Close the dockspace
+            return true;
+        }
+
+        // Obtain the camera matrix
+        int w, h;
+        Application::GetInstance().window->GetWindowSize(w, h);
+        const glm::mat4& viewMatrix = activeCamera->GetViewMatrix();
+        const glm::mat4& projectionMatrix = activeCamera->GetProjectionMatrix(w, h);
 
         // Obtain the global matrix of the object
         glm::mat4 modelMatrix = selectedGameObject->GetGlobalMatrix();
@@ -415,31 +435,23 @@ void ModuleEditor::DrawHierarchyNode(GameObject* go)
     // SceneRoot cannot be desactivated
     if (go->GetParent() != nullptr)
     {
-        // The checkbox is unique for this object
-        ImGui::PushID(go);
-
         ImGui::Checkbox("##active", &go->active);
-
-        ImGui::PopID();
         ImGui::SameLine();
     }
 
     // Configuration the flags for the TreeNode
     ImGuiTreeNodeFlags nodeFlags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
 
-    // If it's the selected node it's applied the flag selectedGameObject
     if (go == selectedGameObject)
     {
         nodeFlags |= ImGuiTreeNodeFlags_Selected;
     }
 
-    // If it has no childs  it's a node marked as 'leaf'
     if (go->GetChildren().empty())
     {
         nodeFlags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
     }
 
-    // If the object is inactive is drawn grey
     if (!go->active)
     {
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
@@ -457,7 +469,7 @@ void ModuleEditor::DrawHierarchyNode(GameObject* go)
     // Check if the user has made click on the node
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
     {
-        selectedGameObject = go; // Selected
+        selectedGameObject = go;
     }
 
     // If the node is open and it's not marked as 'leaf' the childrens are drawn
@@ -467,7 +479,7 @@ void ModuleEditor::DrawHierarchyNode(GameObject* go)
         {
             DrawHierarchyNode(child.get());
         }
-        ImGui::TreePop(); // Close the node
+        ImGui::TreePop();
     }
 
     ImGui::PopID();
@@ -499,6 +511,9 @@ void ModuleEditor::DrawInspectorWindow()
     // Iterate all of the components
     for (auto& component : selectedGameObject->components)
     {
+        // PushID
+        ImGui::PushID(component.get());
+
         // Show the UI for all the type of component
         switch (component->GetType())
         {
@@ -597,9 +612,21 @@ void ModuleEditor::DrawInspectorWindow()
             }
             break;
         }
+        case ComponentType::CAMERA:
+        {
+            ComponentCamera* camera = static_cast<ComponentCamera*>(component.get());
+            if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::DragFloat("FOV", &camera->cameraFOV, 1.0f, 1.0f, 179.0f);
+                ImGui::DragFloat("Near Plane", &camera->nearPlane, 0.1f, 0.01f, 1000.0f);
+                ImGui::DragFloat("Far Plane", &camera->farPlane, 1.0f, 1.0f, 10000.0f);
+            }
+            break;
         }
-    }
 
+        }
+        ImGui::PopID();
+    }
     ImGui::End();
 }
 
@@ -699,7 +726,6 @@ void ModuleEditor::DrawConfigurationWindow()
         {
             ImGui::SliderFloat("Camera Speed", &render->cameraSpeed, 0.1f, 10.0f);
             ImGui::SliderFloat("Camera Sensitivity", &render->cameraSensitivity, 0.01f, 1.0f);
-            ImGui::SliderFloat("Camera FOV", &render->cameraFOV, 1.0f, 120.0f);
             ImGui::TreePop();
         }
         if (ImGui::TreeNode("Window"))

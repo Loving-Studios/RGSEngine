@@ -1,10 +1,14 @@
+#pragma once
+
 #include "Module.h" 
 #include <SDL3/SDL.h>
 #include <glm/glm.hpp>
 #include <memory>
+#include "ComponentCamera.h"
 
 class Shader;
 class GameObject;
+class ComponentTransform;
 
 class Render : public Module
 {
@@ -36,6 +40,8 @@ public:
 	// Set background color
 	void SetBackgroundColor(SDL_Color color);
 
+	void SetMainCamera(ComponentCamera* cam);
+	ComponentCamera* GetMainCamera() const { return mainCamera; }
 
 public:
 	SDL_Color background;
@@ -45,13 +51,12 @@ public:
 	//Camera movement speed
 	float cameraSpeed;
 	float cameraSensitivity;
-	float cameraFOV;      // Field of view
 
 	bool drawVertexNormals;
 	bool drawFaceNormals;
 
-	void ProcessKeyboardMovement(float dt);
-	void FocusOnGameObject(GameObject* go);
+	void ProcessKeyboardMovement(float dt, ComponentTransform* transform);
+	void FocusOnGameObject(GameObject* go, ComponentTransform* transform);
 
 	// Orbit mode
 	void SetOrbitTarget(GameObject* go);
@@ -67,14 +72,8 @@ private:
 
 	std::unique_ptr<Shader> normalsShader;
 
-	// Camera propieties 
-	glm::vec3 cameraPos; // Camera position
-	glm::vec3 cameraFront; // Direction the camera is looking at
-	glm::vec3 cameraUp; // Vector up camera
-	glm::vec3 cameraRight; // Vector right camera
-
-	float cameraYaw;      // Rotation horizontal (Y)
-	float cameraPitch;   // Rotation vertical (X)
+	float cameraYaw;
+	float cameraPitch;
 
 	// Orbit mode
 	bool isOrbiting;
@@ -89,14 +88,13 @@ private:
 	int lastMouseX;
 	int lastMouseY;
 
-	//Helper functions
-	void UpdateCameraVectors();
+	ComponentCamera* mainCamera;
 
-	void ProcessMouseFreeLook(int deltaX, int deltaY);
-	void ProcessMouseOrbit(int deltaX, int deltaY);
+	void UpdateCameraRotation(ComponentTransform* transform);
+	void ProcessMouseFreeLook(float deltaX, float deltaY, ComponentTransform* transform);
+	void ProcessMouseOrbit(float deltaX, float deltaY, ComponentTransform* transform);
 
 	void DrawGameObject(GameObject* go, const glm::mat4& parentTransform);
-
 	void CreateDefaultCheckerTexture();
 
 	glm::mat4 viewMatrix;

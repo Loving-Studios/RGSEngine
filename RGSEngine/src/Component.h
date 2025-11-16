@@ -5,7 +5,8 @@ enum class ComponentType
     UNKNOWN = 0,
     TRANSFORM,
     MESH,
-    TEXTURE
+    TEXTURE,
+    CAMERA
 };
 
 // Forward Declaration to avoid the GameObject and the Component is icluded mutuially and creates a loop
