@@ -10,6 +10,7 @@
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
 #include "ComponentTexture.h"
+#include "ComponentCamera.h"
 
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
@@ -429,6 +430,22 @@ void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 			if (drawVertexNormals) mesh->DrawNormals();
 			if (drawFaceNormals)   mesh->DrawFaceNormals();
 		}
+	}
+
+	ComponentCamera* camera = go->GetComponent<ComponentCamera>();
+	if (camera != nullptr && camera->active)
+	{
+		// Using the shader for the normals
+		normalsShader->Use();
+
+		// Send the indentity transform because GenerateFrustumGizmo already uses the world coords with transform->position
+		glm::mat4 identity = glm::mat4(1.0f);
+		normalsShader->SetMat4("model", identity);
+
+		// Draw the lines
+		camera->DrawFrustum();
+
+		shader->Use();
 	}
 
 	for (const auto& child : go->GetChildren())

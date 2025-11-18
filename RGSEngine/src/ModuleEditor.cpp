@@ -22,6 +22,7 @@
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
 #include "ComponentTexture.h"
+#include "ComponentCamera.h"
 #include "ImGuizmo.h"
 
 #include <IL/il.h>
@@ -600,6 +601,33 @@ void ModuleEditor::DrawInspectorWindow()
                 ImGui::Text("Path: %s", texture->path.c_str());
                 ImGui::Text("Size: %d x %d", texture->width, texture->height);
                 ImGui::Text("Texture ID: %d", texture->textureID);
+            }
+            break;
+        }
+        case ComponentType::CAMERA:
+        {
+            ComponentCamera* camera = static_cast<ComponentCamera*>(component.get());
+
+            if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::Checkbox("Active", &camera->active);
+
+                if (ImGui::DragFloat("FOV", &camera->cameraFOV, 0.1f, 1.0f, 179.0f))
+                {
+                    camera->GenerateFrustumGizmo();
+                }
+
+                if (ImGui::DragFloat("Near Plane", &camera->nearPlane, 0.1f, 0.01f, 1000.0f))
+                {
+                    if (camera->nearPlane <= 0.0f) camera->nearPlane = 0.01f;
+                    camera->GenerateFrustumGizmo();
+                }
+
+                if (ImGui::DragFloat("Far Plane", &camera->farPlane, 1.0f, 0.01f, 2000.0f))
+                {
+                    if (camera->farPlane <= camera->nearPlane) camera->farPlane = camera->nearPlane + 0.1f;
+                    camera->GenerateFrustumGizmo();
+                }
             }
             break;
         }
