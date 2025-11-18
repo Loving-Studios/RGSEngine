@@ -9,8 +9,6 @@
 #include <cstdint>
 #include "ComponentTransform.h"
 #include <glm/glm.hpp>
-#include <algorithm>
-#include <cmath>
 
 // std::shared_ptr so the memory of the components and childens is auto managed
 using std::string;
@@ -113,13 +111,6 @@ public:
         }
     }
 
-    // ImGuizmo requires the global position
-    glm::vec3 GetGlobalPosition()
-    {
-        glm::mat4 globalMatrix = GetGlobalMatrix();
-        return glm::vec3(globalMatrix[3]);
-    }
-
     // ImGuizmo provides the new global matrix, needs to be calculated the local matrix of the object and separate the position, rotation and scale
     void SetLocalFromGlobal(const glm::mat4& newGlobalMatrix)
     {
@@ -140,15 +131,6 @@ public:
         // Check if the decompose was successful
         if (glm::decompose(newLocalMatrix, newScale, newRot, newPos, skew, perspective))
         {
-            // Check first if the decompose has returned corrupt numbers, Nan
-            if (isnan(newPos.x) || isnan(newPos.y) || isnan(newPos.z) ||
-                isnan(newScale.x) || isnan(newScale.y) || isnan(newScale.z))
-            {
-                // Math error
-                return;
-            }
-
-            // If they are valid numbers
             // Define minimum scale to avoid negative scale
             const float MIN_SCALE = 0.001f;
             if (newScale.x < MIN_SCALE) newScale.x = MIN_SCALE;

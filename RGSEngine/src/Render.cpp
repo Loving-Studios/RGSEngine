@@ -17,7 +17,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/quaternion.hpp>
 
 namespace NormalShaders
 {
@@ -60,12 +59,17 @@ Render::Render() : Module()
 	drawFaceNormals = false;
 
 	// Initialize camera rotation
-	mainCamera = nullptr;
+	cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+	cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+	cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+	cameraRight = glm::vec3(1.0f, 0.0f, 0.0f);
+
 	cameraYaw = -90.0f;
 	cameraPitch = 0.0f;
 
 	cameraSpeed = 2.5f;
 	cameraSensitivity = 0.1f;
+	cameraFOV = 45.0f;
 
 	isRightDragging = false;
 
@@ -126,34 +130,22 @@ bool Render::Start()
 	return true;
 }
 
-void Render::SetMainCamera(ComponentCamera* cam)
+void Render::UpdateCameraVectors()
 {
-	mainCamera = cam;
-	LOG("Main Camera set in Renderer.");
+	// Calcular nuevo vector 
+	glm::vec3 front;
+	front.x = cos(glm::radians(cameraYaw)) * cos(glm::radians(cameraPitch));
+	front.y = sin(glm::radians(cameraPitch));
+	front.z = sin(glm::radians(cameraYaw)) * cos(glm::radians(cameraPitch));
+	cameraFront = glm::normalize(front);
 
-	// Sinc the controller yaw/pitch with the initial rotation of the camera
-	if (mainCamera)
-	{
-		ComponentTransform* transform = mainCamera->owner->GetComponent<ComponentTransform>();
-		if (transform)
-		{
-			glm::vec3 eulerAngles = glm::degrees(glm::eulerAngles(transform->rotation));
-			LOG("Camera controller sync (Yaw: %.2f, Pitch: %.2f)", cameraYaw, cameraPitch);
-		}
-	}
-}
-
-void Render::UpdateCameraRotation(ComponentTransform* transform)
-{
-	// Convert the angles, the controller, to a quaternion in this order: Pitch (X), Yaw (Y), Roll (Z)
-	glm::quat newRotation = glm::quat(glm::vec3(glm::radians(cameraPitch), glm::radians(cameraYaw), 0.0f));
-
-	// Apply the rotation to the transform of the camera
-	transform->SetRotation(newRotation);
+	// Recalculate right y up
+	cameraRight = glm::normalize(glm::cross(cameraFront, glm::vec3(0.0f, 1.0f, 0.0f)));
+	cameraUp = glm::normalize(glm::cross(cameraRight, cameraFront));
 }
 
 
-void Render::ProcessKeyboardMovement(float dt, ComponentTransform* transform)
+void Render::ProcessKeyboardMovement(float dt)
 {
 	Input* input = Application::GetInstance().input.get();
 
@@ -164,22 +156,18 @@ void Render::ProcessKeyboardMovement(float dt, ComponentTransform* transform)
 		speed *= 2.0f;
 	}
 
-	// Calculate the direction vector from the transform
-	glm::vec3 front = transform->rotation * glm::vec3(0.0f, 0.0f, -1.0f);
-	glm::vec3 right = transform->rotation * glm::vec3(1.0f, 0.0f, 0.0f);
-
 	// WASD movement
 	if (input->GetKey(SDL_SCANCODE_W))
-		transform->position += front * speed;
+		cameraPos += cameraFront * speed;
 	if (input->GetKey(SDL_SCANCODE_S))
-		transform->position -= front * speed;
+		cameraPos -= cameraFront * speed;
 	if (input->GetKey(SDL_SCANCODE_A))
-		transform->position -= right * speed;
+		cameraPos -= cameraRight * speed;
 	if (input->GetKey(SDL_SCANCODE_D))
-		transform->position += right * speed;
+		cameraPos += cameraRight * speed;
 }
 
-void Render::ProcessMouseFreeLook(float deltaX, float deltaY, ComponentTransform* transform)
+void Render::ProcessMouseFreeLook(int deltaX, int deltaY)
 {
 	cameraYaw += deltaX * cameraSensitivity;
 	cameraPitch -= deltaY * cameraSensitivity;
@@ -190,10 +178,10 @@ void Render::ProcessMouseFreeLook(float deltaX, float deltaY, ComponentTransform
 	if (cameraPitch < -89.0f)
 		cameraPitch = -89.0f;
 
-	UpdateCameraRotation(transform); // Sinc the rotation with the ComponentTransform
+	UpdateCameraVectors();
 }
 
-void Render::ProcessMouseOrbit(float deltaX, float deltaY, ComponentTransform* transform)
+void Render::ProcessMouseOrbit(int deltaX, int deltaY)
 {
 	// Update rotation angles based on mouse movement
 	cameraYaw += deltaX * cameraSensitivity;
@@ -214,13 +202,14 @@ void Render::ProcessMouseOrbit(float deltaX, float deltaY, ComponentTransform* t
 	offset = glm::normalize(offset);
 
 	// Position the camera at orbit distance from center
-	transform->SetPosition(orbitCenter - (offset * orbitDistance));
+	cameraPos = orbitCenter - (offset * orbitDistance);
 
-	// Aim for the center, calculating the vector front
-	glm::vec3 front = glm::normalize(orbitCenter - transform->position);
+	// Aim for the center
+	cameraFront = glm::normalize(orbitCenter - cameraPos);
 
-	// Update the camera vectors calculating the rotation quaternion who looks to that position
-	transform->SetRotation(glm::quatLookAt(front, glm::vec3(0.0f, 1.0f, 0.0f)));
+	// Update the camera vectors
+	cameraRight = glm::normalize(glm::cross(cameraFront, glm::vec3(0.0f, 1.0f, 0.0f)));
+	cameraUp = glm::normalize(glm::cross(cameraRight, cameraFront));
 }
 
 // Called each loop iteration
@@ -234,23 +223,10 @@ bool Render::PreUpdate()
 	);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	// If there is no camera
-	if (mainCamera == nullptr)
-	{
-		return true;
-	}
-
-	ComponentTransform* camTransform = mainCamera->owner->GetComponent<ComponentTransform>();
-	if (camTransform == nullptr)
-	{
-		return true;
-	}
-
 	ImGuiIO& io = ImGui::GetIO();
 	if (io.WantCaptureMouse)
 	{
 		isRightDragging = false;
-		isOrbiting = false;
 		return true;
 	}
 
@@ -262,10 +238,15 @@ bool Render::PreUpdate()
 		if (input->GetMouseButtonDown(SDL_BUTTON_LEFT) == KEY_DOWN)
 		{
 			isOrbiting = true;
-			// Use the GLOBAL position of the object as centre
-			orbitCenter = orbitTarget->GetGlobalPosition();
-			// Use the transform position of the camera
-			orbitDistance = glm::length(camTransform->position - orbitCenter);
+			input->GetMousePosition(orbitLastMouseX, orbitLastMouseY);
+
+			// Configurar el centro de órbita y la distancia
+			ComponentTransform* transform = orbitTarget->GetComponent<ComponentTransform>();
+			if (transform != nullptr)
+			{
+				orbitCenter = transform->position;
+				orbitDistance = glm::length(cameraPos - orbitCenter);
+			}
 		}
 
 		if (input->GetMouseButtonDown(SDL_BUTTON_LEFT) == KEY_UP)
@@ -275,26 +256,23 @@ bool Render::PreUpdate()
 
 		if (isOrbiting && input->GetMouseButtonDown(SDL_BUTTON_LEFT) == KEY_REPEAT)
 		{
-			int deltaX = 0;
-			int deltaY = 0;
-			input->GetMouseMotion(deltaX, deltaY);
+			int currentMouseX, currentMouseY;
+			input->GetMousePosition(currentMouseX, currentMouseY);
 
-			float dampedDeltaX = (float)deltaX * 0.8f;
-			float dampedDeltaY = (float)deltaY * 0.8f;
+			int deltaX = currentMouseX - orbitLastMouseX;
+			int deltaY = currentMouseY - orbitLastMouseY;
 
-			ProcessMouseOrbit(dampedDeltaX, dampedDeltaY, camTransform);
+			ProcessMouseOrbit(deltaX, deltaY);
+
+			orbitLastMouseX = currentMouseX;
+			orbitLastMouseY = currentMouseY;
 		}
 	}
-	// If Alt is not pressed stop orbiting
-	if (!input->IsAltPressed())
-	{
-		isOrbiting = false;
-	}
 
-	// Free look view
 	if (input->GetMouseButtonDown(SDL_BUTTON_RIGHT) == KEY_DOWN)
 	{
 		isRightDragging = true;
+		input->GetMousePosition(lastMouseX, lastMouseY);
 	}
 
 	if (input->GetMouseButtonDown(SDL_BUTTON_RIGHT) == KEY_UP)
@@ -302,26 +280,31 @@ bool Render::PreUpdate()
 		isRightDragging = false;
 	}
 
-	// Only active the free look view if is draggong and not orbiting
-	if (isRightDragging && !isOrbiting && input->GetMouseButtonDown(SDL_BUTTON_RIGHT) == KEY_REPEAT)
+	// Free look
+	if (isRightDragging && input->GetMouseButtonDown(SDL_BUTTON_RIGHT) == KEY_REPEAT)
 	{
-		int deltaX = 0;
-		int deltaY = 0;
-		input->GetMouseMotion(deltaX, deltaY);
+		int currentMouseX, currentMouseY;
+		input->GetMousePosition(currentMouseX, currentMouseY);
 
-		float dampedDeltaX = (float)deltaX * 0.8f;
-		float dampedDeltaY = (float)deltaY * 0.8f;
+		int deltaX = currentMouseX - lastMouseX;
+		int deltaY = currentMouseY - lastMouseY;
 
-		ProcessMouseFreeLook(dampedDeltaX, dampedDeltaY, camTransform);
+		ProcessMouseFreeLook(deltaX, deltaY);
+
+		lastMouseX = currentMouseX;
+		lastMouseY = currentMouseY;
 	}
 
 	// Zoom
 	int mouseWheelY = input->GetMouseWheel();
 	if (mouseWheelY != 0)
 	{
-		mainCamera->cameraFOV -= mouseWheelY * 2.0f;
-		if (mainCamera->cameraFOV < 1.0f) mainCamera->cameraFOV = 1.0f;
-		if (mainCamera->cameraFOV > 90.0f) mainCamera->cameraFOV = 90.0f;
+		cameraFOV -= mouseWheelY * 2.0f;
+		// Limit FOV between 1 and 90 degrees
+		if (cameraFOV < 1.0f)
+			cameraFOV = 1.0f;
+		if (cameraFOV > 90.0f)
+			cameraFOV = 90.0f;
 	}
 
 	return true;
@@ -329,26 +312,29 @@ bool Render::PreUpdate()
 
 bool Render::Update(float dt)
 {
-	// Obtain the camera and the transform
-	if (mainCamera == nullptr) return true;
-	ComponentTransform* camTransform = mainCamera->owner->GetComponent<ComponentTransform>();
-	if (camTransform == nullptr) return true;
-
 	Input* input = Application::GetInstance().input.get();
 	ImGuiIO& io = ImGui::GetIO();
 
 	if (isRightDragging && !isOrbiting && !io.WantCaptureKeyboard)
 	{
-		ProcessKeyboardMovement(dt, camTransform);
+		ProcessKeyboardMovement(dt);
 	}
 
-	// Obtain the matrix from the camera component
+	// Only allow WASD movement when the right button is pressed
+	if (isRightDragging)
+	{
+		ProcessKeyboardMovement(dt);
+	}
+
+	viewMatrix = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+	// Create perspective projection
 	int width, height;
 	Application::GetInstance().window->GetWindowSize(width, height);
-	// The camera now calculates his owns matrix
-	glm::mat4 viewMatrix = mainCamera->GetViewMatrix();
-	glm::mat4 projectionMatrix = mainCamera->GetProjectionMatrix(width, height);
+	projectionMatrix = glm::perspective(glm::radians(cameraFOV), (float)width / (float)height, 0.1f, 100.0f);
 
+	shader->Use();
+
+	// Send matrix to shader
 	shader->Use();
 	shader->SetMat4("view", viewMatrix);
 	shader->SetMat4("projection", projectionMatrix);
@@ -370,7 +356,9 @@ bool Render::Update(float dt)
 	if (!loggedOnce)
 	{
 		LOG("=== CAMERA INFO ===");
-		LOG("Camera FOV: %.2f", mainCamera->cameraFOV);
+		LOG("Camera position: (%.2f, %.2f, %.2f)", cameraPos.x, cameraPos.y, cameraPos.z);
+		LOG("Camera front: (%.2f, %.2f, %.2f)", cameraFront.x, cameraFront.y, cameraFront.z);
+		LOG("Camera FOV: %.2f", cameraFOV);
 		loggedOnce = true;
 	}
 
@@ -481,44 +469,39 @@ void Render::SetOrbitTarget(GameObject* go)
 	orbitTarget = go;
 }
 
-void Render::FocusOnGameObject(GameObject* go, ComponentTransform* transform)
+void Render::FocusOnGameObject(GameObject* go)
 {
-	if (go == nullptr || transform == nullptr)
+	if (go == nullptr)
 		return;
 
-	ComponentTransform* targetTransform = go->GetComponent<ComponentTransform>();
-	if (targetTransform == nullptr)
+	ComponentTransform* transform = go->GetComponent<ComponentTransform>();
+	if (transform == nullptr)
 		return;
 
-	// Get the GLOBAL object position
-	glm::vec3 targetPos = go->GetGlobalPosition();
+	// Get the object position
+	glm::vec3 targetPos = transform->position;
 
 	//Calculate camera distance based on object size
-	float objectSize = glm::max(glm::max(targetTransform->scale.x, targetTransform->scale.y), targetTransform->scale.z);
-	float distance = objectSize * 3.0f;
+	float objectSize = glm::max(glm::max(transform->scale.x, transform->scale.y), transform->scale.z);
+	float distance = objectSize * 3.0f; // Multiplicador para dar espacio visual
+
 	// Minimum distance
-	if (distance < 2.0f) distance = 2.0f;
 
-	// Obtain the actual direction from the angles of the controller
-	glm::vec3 front;
-	front.x = cos(glm::radians(cameraYaw)) * cos(glm::radians(cameraPitch));
-	front.y = sin(glm::radians(cameraPitch));
-	front.z = sin(glm::radians(cameraYaw)) * cos(glm::radians(cameraPitch));
-	front = glm::normalize(front);
+	if (distance < 2.0f)
+		distance = 2.0f;
 
-	// Set the new camera position
-	glm::vec3 newCamPos = targetPos - (front * distance);
-	transform->SetPosition(newCamPos);
+	// Position the camera at a distance from the object in the current viewing direction
+	cameraPos = targetPos - (cameraFront * distance);
 
-	// Calculate the controller angles
-	glm::vec3 direction = glm::normalize(targetPos - newCamPos);
+	// Calculate the vector from camera to object
+	glm::vec3 direction = glm::normalize(targetPos - cameraPos);
 
-	// Update those angles
+	// Calculate yaw and pitch from this direction vector
 	cameraYaw = glm::degrees(atan2(direction.z, direction.x));
 	cameraPitch = glm::degrees(asin(direction.y));
 
-	// Sync with the transform
-	UpdateCameraRotation(transform);
+
+	UpdateCameraVectors();
 
 	LOG("Camera focused on: %s at position (%.2f, %.2f, %.2f)",
 		go->GetName().c_str(), targetPos.x, targetPos.y, targetPos.z);

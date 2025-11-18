@@ -54,9 +54,6 @@ bool Input::PreUpdate()
 
 	mouseWheelY = 0;
 
-	mouseMotionX = 0;
-	mouseMotionY = 0;
-
 	int numKeys = 0;
 	const bool* keys = SDL_GetKeyboardState(&numKeys);
 
