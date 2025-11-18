@@ -6,6 +6,7 @@
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
 #include "ComponentTexture.h"
+#include "ComponentCamera.h"
 
 #include <glad/glad.h>
 #include <vector>
@@ -53,7 +54,22 @@ bool ModuleScene::Start()
     // Creation of the GameObject root of the scene, the SceneRoot
     rootObject = std::make_shared<GameObject>("SceneRoot");
 
-    //Create the fbx from the start of the engine
+    // Camera
+    auto cameraGO = std::make_shared<GameObject>("Game Camera");
+
+    // Camera Transform
+    auto camTransform = std::make_shared<ComponentTransform>(cameraGO.get());
+    camTransform->SetPosition(glm::vec3(0.0f, 1.0f, 5.0f));
+    cameraGO->AddComponent(camTransform);
+
+    // Add ComponentCamera
+    auto camComponent = std::make_shared<ComponentCamera>(cameraGO.get());
+    cameraGO->AddComponent(camComponent);
+
+    // Add the camera to the scene
+    AddGameObject(cameraGO);
+
+    // Create the fbx from the start of the engine
     std::shared_ptr<GameObject> baker_house =
         Application::GetInstance().loadFiles->LoadFBX("../Assets/BakerHouse.fbx");
 
