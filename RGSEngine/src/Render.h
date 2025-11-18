@@ -101,5 +101,12 @@ private:
 
 	glm::mat4 viewMatrix;
 	glm::mat4 projectionMatrix;
+
+	unsigned int gridVAO = 0;
+	unsigned int gridVBO = 0;
+	unsigned int gridVertexCount = 0;
+
+	void CreateGrid();
+	void DrawGrid();
 };
 

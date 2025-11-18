@@ -133,6 +133,12 @@ bool ModuleEditor::Update(float dt)
             mCurrentGizmoOperation = ImGuizmo::ROTATE;
         if (input->GetKey(SDL_SCANCODE_R) == KEY_DOWN)
             mCurrentGizmoOperation = ImGuizmo::SCALE;
+        if (input->GetKey(SDL_SCANCODE_Q) == KEY_DOWN && selectedGameObject != nullptr)
+        {
+            selectedGameObject = nullptr;
+            // Disable the ImGuizmo so it's not floating with anything attached
+            mCurrentGizmoOperation = (ImGuizmo::OPERATION)-1;
+        }
     }
 
     // --- DRAW THE INTERFACE ---
@@ -631,9 +637,9 @@ void ModuleEditor::ApplyDefaultDockingLayout()
 
     // Apply the Dock of our windows to the id's created
     ImGui::DockBuilderDockWindow("Hierarchy", dock_left_id);
+    ImGui::DockBuilderDockWindow("Configuration", dock_right_id); // Same Tab as the Inspector
     ImGui::DockBuilderDockWindow("Inspector", dock_right_id);
     ImGui::DockBuilderDockWindow("Console", dock_bottom_id);
-    ImGui::DockBuilderDockWindow("Configuration", dock_right_id); // Same Tab as the Inspector
     ImGui::DockBuilderDockWindow("Dear ImGui Demo", dock_main_id); // Centered just in case
 
 

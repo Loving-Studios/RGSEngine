@@ -48,11 +48,11 @@ namespace NormalShaders
 Render::Render() : Module()
 {
 	name = "render";
-	background.r = 0;
-	background.g = 0;
-	background.b = 0;
+	background.r = 50;
+	background.g = 50;
+	background.b = 50;
 	background.a = 255;
-
+	// Grey Color
 	defaultCheckerTexture = 0;
 
 	drawVertexNormals = false;
@@ -126,6 +126,8 @@ bool Render::Start()
 	normalsShader = std::make_unique<Shader>(NormalShaders::vertex, NormalShaders::fragment);
 	
 	CreateDefaultCheckerTexture();
+
+	CreateGrid();
 
 	return true;
 }
@@ -332,6 +334,8 @@ bool Render::Update(float dt)
 	Application::GetInstance().window->GetWindowSize(width, height);
 	projectionMatrix = glm::perspective(glm::radians(cameraFOV), (float)width / (float)height, 0.1f, 100.0f);
 
+	DrawGrid();
+
 	shader->Use();
 
 	// Send matrix to shader
@@ -453,6 +457,10 @@ bool Render::CleanUp()
 		defaultCheckerTexture = 0;
 	}
 
+	// Grid CleanUp
+	if (gridVAO != 0) { glDeleteVertexArrays(1, &gridVAO); gridVAO = 0; }
+	if (gridVBO != 0) { glDeleteBuffers(1, &gridVBO); gridVBO = 0; }
+
 	// The shader is from this class so we have to CleanUp
 	shader.reset();
 	normalsShader.reset();
@@ -554,13 +562,53 @@ void Render::CreateDefaultCheckerTexture()
 	}
 }
 
-//void Render::SetViewPort(const SDL_Rect& rect)
-//{
-//	SDL_SetRenderViewport(renderer, &rect);
-//}
-//
-//void Render::ResetViewPort()
-//{
-//	SDL_SetRenderViewport(renderer, &viewport);
-//}
+void Render::CreateGrid()
+{
+	float gridSize = 15.0f;
+	int lines = 15;
+	std::vector<float> vertices;
 
+	for (int i = -lines; i <= lines; ++i) {
+		float pos = i * (gridSize / lines);
+
+		// Paralel lines to the Z axis (X-axis lines)
+		vertices.push_back(pos); vertices.push_back(0.0f); vertices.push_back(-gridSize);
+		vertices.push_back(pos); vertices.push_back(0.0f); vertices.push_back(gridSize);
+
+		// Paralel lines to the X (Z-axis lines)
+		vertices.push_back(-gridSize); vertices.push_back(0.0f); vertices.push_back(pos);
+		vertices.push_back(gridSize); vertices.push_back(0.0f); vertices.push_back(pos);
+	}
+
+	gridVertexCount = vertices.size() / 3;
+
+	glGenVertexArrays(1, &gridVAO);
+	glGenBuffers(1, &gridVBO);
+
+	glBindVertexArray(gridVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, gridVBO);
+	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+
+	// Position attribute (layout 0)
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	glBindVertexArray(0);
+	LOG("Grid VAO created: %d, Lines: %d", gridVAO, gridVertexCount / 2);
+}
+
+void Render::DrawGrid()
+{
+	if (gridVAO == 0) return;
+
+	// Using the same shader (color) as the normals
+	normalsShader->Use();
+
+	// Grid doesnt have model transformation, its the identity
+	glm::mat4 model = glm::mat4(1.0f);
+	normalsShader->SetMat4("model", model);
+
+	glBindVertexArray(gridVAO);
+	glDrawArrays(GL_LINES, 0, gridVertexCount);
+	glBindVertexArray(0);
+}
