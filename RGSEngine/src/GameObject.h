@@ -144,6 +144,62 @@ public:
         }
     }
 
+    // Verify if this is ancestor of the potentialChild we are moving to prevent a cicle parent - child- parent 
+    bool IsAncestorOf(GameObject* potentialChild)
+    {
+        GameObject* current = potentialChild->parent;
+        while (current != nullptr)
+        {
+            if (current == this) return true;
+            current = current->parent;
+        }
+        return false;
+    }
+
+    void SetParent(GameObject* newParent)
+    {
+        // If its already the parent
+        if (parent == newParent) return;
+
+        // Save the actul global transform before moving
+        glm::mat4 globalMatrix = GetGlobalMatrix();
+
+        // Find the shared_ptr of the parent
+        shared_ptr<GameObject> myPtr = nullptr;
+
+        if (parent != nullptr)
+        {
+            auto& brothers = parent->children;
+            for (auto it = brothers.begin(); it != brothers.end(); ++it)
+            {
+                if (it->get() == this)
+                {
+                    myPtr = *it; // Copy the shared_ptr
+                    brothers.erase(it); // Remove form the old parent
+                    break;
+                }
+            }
+        }
+
+        // Check if the object doesnt have  parent
+        if (myPtr != nullptr)
+        {
+            // Assign the new father
+            if (newParent != nullptr)
+            {
+                newParent->children.push_back(myPtr);
+                parent = newParent;
+            }
+            else
+            {
+                // If newParent is null, send to SceneRoot
+            }
+        }
+
+        // Recalculate the local transform to mantain the visual position
+        SetLocalFromGlobal(globalMatrix);
+    }
+
     // --- Getters and Setters ---
     const string& GetName() const { return name; }
     GameObject* GetParent() const { return parent; }

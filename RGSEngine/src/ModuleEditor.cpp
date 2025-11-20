@@ -197,11 +197,14 @@ bool ModuleEditor::Update(float dt)
     ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
     ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 
+    bool shouldFocusInspector = false;
+
     // If it's the first time opening applies the default view
     if (firstTimeLayout)
     {
         ApplyDefaultDockingLayout();
         firstTimeLayout = false;
+        shouldFocusInspector = true;
     }
 
     // Show the demo window at the beginning
@@ -222,6 +225,11 @@ bool ModuleEditor::Update(float dt)
 
     if (showAboutWindow)
         DrawAboutWindow();
+
+    if (shouldFocusInspector)
+    {
+        ImGui::SetWindowFocus("Inspector");
+    }
 
     // Close the container window
     ImGui::End();
@@ -410,6 +418,24 @@ void ModuleEditor::DrawHierarchyWindow()
         DrawHierarchyNode(root);
     }
 
+    // Create invisible space at the end of the window
+    ImVec2 available = ImGui::GetContentRegionAvail();
+    ImGui::Dummy(available);
+
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("HIERARCHY_GO"))
+        {
+            GameObject* droppedGO = *(GameObject**)payload->Data;
+            // Droped anywhere the SceneRoot
+            if (droppedGO && root && droppedGO->GetParent() != root)
+            {
+                droppedGO->SetParent(root);
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
+
     ImGui::End();
 }
 
@@ -423,13 +449,13 @@ void ModuleEditor::DrawHierarchyNode(GameObject* go)
     if (go->GetParent() != nullptr)
     {
         // The checkbox is unique for this object
-        ImGui::PushID(go);
-
         ImGui::Checkbox("##active", &go->active);
-
-        ImGui::PopID();
         ImGui::SameLine();
+
     }
+
+    // Save the node lead without childrens at the begining to be consistent later
+    bool isLeaf = go->GetChildren().empty();
 
     // Configuration the flags for the TreeNode
     ImGuiTreeNodeFlags nodeFlags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
@@ -441,7 +467,7 @@ void ModuleEditor::DrawHierarchyNode(GameObject* go)
     }
 
     // If it has no childs  it's a node marked as 'leaf'
-    if (go->GetChildren().empty())
+    if (isLeaf)
     {
         nodeFlags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
     }
@@ -467,14 +493,74 @@ void ModuleEditor::DrawHierarchyNode(GameObject* go)
         selectedGameObject = go; // Selected
     }
 
-    // If the node is open and it's not marked as 'leaf' the childrens are drawn
-    if (nodeOpen && !go->GetChildren().empty())
+    // Drag the object on the hierarchy
+    if (go->GetParent() != nullptr && ImGui::BeginDragDropSource())
     {
-        for (const auto& child : go->GetChildren())
+        // send the pointer of the object as payload
+        ImGui::SetDragDropPayload("HIERARCHY_GO", &go, sizeof(GameObject*));
+        ImGui::Text("Moving %s", go->GetName().c_str());
+        ImGui::EndDragDropSource();
+    }
+
+    // Drop object to make it parent
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("HIERARCHY_GO"))
         {
-            DrawHierarchyNode(child.get());
+            GameObject* droppedGO = *(GameObject**)payload->Data;
+
+            // Avoid reparenting to itself, or to its own childrens
+            if (droppedGO != go && !droppedGO->IsAncestorOf(go))
+            {
+                droppedGO->SetParent(go);
+            }
         }
-        ImGui::TreePop(); // Close the node
+        ImGui::EndDragDropTarget();
+    }
+
+    // New menu right click
+    if (ImGui::BeginPopupContextItem())
+    {
+        if (ImGui::MenuItem("Create Empty Child"))
+        {
+            // Create empty object
+
+            auto child = std::make_shared<GameObject>("Empty Child");
+            child->AddComponent(std::make_shared<ComponentTransform>(child.get()));
+
+            // Add to the list of childs of this object
+            go->AddChild(child);
+        }
+
+        if (ImGui::MenuItem("Delete"))
+        {
+            if (go->GetParent())
+                go->GetParent()->RemoveChild(go);
+            if (selectedGameObject == go) selectedGameObject = nullptr;
+        }
+
+        ImGui::EndPopup();
+    }
+
+    // If the node is open and it's not marked as 'leaf' the childrens are drawn
+    if (nodeOpen)
+    {
+        // Only if it WASNT a leaf at the begining, ImGui made Push, so it has to be made the TreePop
+        if (!isLeaf)
+        {
+            // Draw the childrens, even if its empty the for will do nothing
+            for (const auto& child : go->GetChildren())
+            {
+                DrawHierarchyNode(child.get());
+            }
+            ImGui::TreePop(); // Pop mandatory because the TreeNode made push
+        }
+        else
+        {
+            // If IT WAS a leaf, ImGui didnt made push cause the flag NoTreePushOnOpen
+            // Even if the user adds a son inside, don't need to make the TreePop in this frame
+            // On the next frame, isLeaf will be false and will enter the correct spot
+        }
     }
 
     ImGui::PopID();
@@ -665,11 +751,12 @@ void ModuleEditor::ApplyDefaultDockingLayout()
 
     // Apply the Dock of our windows to the id's created
     ImGui::DockBuilderDockWindow("Hierarchy", dock_left_id);
-    ImGui::DockBuilderDockWindow("Configuration", dock_right_id); // Same Tab as the Inspector
     ImGui::DockBuilderDockWindow("Inspector", dock_right_id);
+    ImGui::DockBuilderDockWindow("Configuration", dock_right_id); // Same Tab as the Inspector
     ImGui::DockBuilderDockWindow("Console", dock_bottom_id);
     ImGui::DockBuilderDockWindow("Dear ImGui Demo", dock_main_id); // Centered just in case
 
+    ImGui::SetWindowFocus("Inspector");
 
     ImGui::DockBuilderFinish(dockspace_id);
 }
