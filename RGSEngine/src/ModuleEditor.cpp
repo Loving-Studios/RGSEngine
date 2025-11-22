@@ -24,9 +24,11 @@
 #include "ComponentTexture.h"
 #include "ComponentCamera.h"
 #include "ImGuizmo.h"
+#include "LoadFiles.h"
 
 #include <IL/il.h>
 #include <glm/gtc/type_ptr.hpp>
+#include <commdlg.h>
 
 ModuleEditor::ModuleEditor() : Module(), oldCerrStreamBuf(nullptr)
 {
@@ -35,6 +37,28 @@ ModuleEditor::ModuleEditor() : Module(), oldCerrStreamBuf(nullptr)
 
 ModuleEditor::~ModuleEditor()
 {
+}
+
+// Static function to open the explorer window of Windows
+std::string OpenFileDialog(const char* filter)
+{
+    OPENFILENAMEA ofn;
+    char fileName[MAX_PATH] = "";
+    ZeroMemory(&ofn, sizeof(ofn));
+
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = nullptr;
+    ofn.lpstrFilter = filter;
+    ofn.lpstrFile = fileName;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
+    ofn.lpstrDefExt = "";
+
+    if (GetOpenFileNameA(&ofn))
+    {
+        return std::string(fileName);
+    }
+    return std::string("");
 }
 
 bool ModuleEditor::Start()
@@ -622,11 +646,25 @@ void ModuleEditor::DrawInspectorWindow()
         case ComponentType::MESH:
         {
             ComponentMesh* mesh = static_cast<ComponentMesh*>(component.get());
-            if (ImGui::CollapsingHeader("Mesh"))
+            if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 // Mesh info
                 ImGui::Text("Index Count: %d", mesh->indexCount);
                 ImGui::Text("VAO: %d, VBO: %d, IBO: %d", mesh->VAO, mesh->VBO, mesh->IBO);
+
+                // Button to select the mesh
+                ImGui::Separator();
+                if (ImGui::Button("Select Mesh..."))
+                {
+                    // Filter for FBX files
+                    std::string path = OpenFileDialog("FBX Files\0*.fbx\0All Files\0*.*\0");
+                    if (!path.empty())
+                    {
+                        Application::GetInstance().loadFiles->LoadMeshFromFile(path.c_str(), selectedGameObject);
+                    }
+                }
+
+                ImGui::Separator();
 
                 // Only show the mesh if it has normals (check the normals VAO)
                 if (mesh->normalsVAO != 0)
@@ -645,7 +683,7 @@ void ModuleEditor::DrawInspectorWindow()
         case ComponentType::TEXTURE:
         {
             ComponentTexture* texture = static_cast<ComponentTexture*>(component.get());
-            if (ImGui::CollapsingHeader("Texture"))
+            if (ImGui::CollapsingHeader("Texture", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 bool useDefault = texture->useDefaultTexture;
                 if (ImGui::Checkbox("Use Default Checkered Texture", &useDefault))
@@ -687,6 +725,18 @@ void ModuleEditor::DrawInspectorWindow()
                 ImGui::Text("Path: %s", texture->path.c_str());
                 ImGui::Text("Size: %d x %d", texture->width, texture->height);
                 ImGui::Text("Texture ID: %d", texture->textureID);
+
+                ImGui::SameLine();
+                // Button to select the texture
+                if (ImGui::Button("Select Texture..."))
+                {
+                    // Filter for images
+                    std::string path = OpenFileDialog("Image Files\0*.png;*.jpg;*.dds;*.jpeg\0All Files\0*.*\0");
+                    if (!path.empty())
+                    {
+                        Application::GetInstance().loadFiles->LoadTexture(path.c_str(), selectedGameObject);
+                    }
+                }
             }
             break;
         }

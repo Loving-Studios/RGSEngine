@@ -25,6 +25,7 @@ public:
 
     std::shared_ptr<GameObject> LoadFBX(const char* file_path);
     bool LoadTexture(const char* file_path, GameObject* target = nullptr);
+    bool LoadMeshFromFile(const char* file_path, GameObject* target);
     void HandleDropFile(const char* file_path);
 
 private:

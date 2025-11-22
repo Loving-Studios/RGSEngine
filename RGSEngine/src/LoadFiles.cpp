@@ -751,3 +751,46 @@ void LoadFiles::CalculateHierarchyBounds(std::shared_ptr<GameObject> go,
         CalculateHierarchyBounds(child, minX, maxX, minY, maxY, minZ, maxZ);
     }
 }
+
+bool LoadFiles::LoadMeshFromFile(const char* file_path, GameObject* target)
+{
+    if (!target) return false;
+
+    ComponentMesh* currentMesh = target->GetComponent<ComponentMesh>();
+    if (!currentMesh)
+    {
+        LOG("Error: Target GameObject does not have a Mesh Component.");
+        return false;
+    }
+
+    const aiScene* scene = aiImportFile(file_path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenNormals | aiProcess_JoinIdenticalVertices | aiProcess_CalcTangentSpace);
+
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode || scene->mNumMeshes == 0)
+    {
+        LOG("Error loading mesh: %s", aiGetErrorString());
+        return false;
+    }
+
+    // Get the first mesh from the file
+    aiMesh* aiMesh = scene->mMeshes[0];
+
+    MeshData meshData;
+    // Reuse your ProcessMesh function
+    ProcessMesh(aiMesh, meshData);
+
+    // Load the data into the existing component, clearing the previous one
+    currentMesh->LoadMesh(meshData.vertices, meshData.num_vertices,
+        meshData.indices, meshData.num_indices,
+        meshData.texCoords, meshData.normals);
+
+    // CleanUp
+    delete[] meshData.vertices;
+    delete[] meshData.indices;
+    if (meshData.texCoords) delete[] meshData.texCoords;
+    if (meshData.normals) delete[] meshData.normals;
+    if (meshData.colors) delete[] meshData.colors;
+
+    aiReleaseImport(scene);
+    LOG("Mesh replaced from: %s", file_path);
+    return true;
+}
