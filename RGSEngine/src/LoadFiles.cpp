@@ -13,6 +13,7 @@
 #include <glad/glad.h>
 
 #include <string>
+#include <glm/gtc/matrix_transform.hpp>
 #include <algorithm>
 #include <cfloat> 
 
@@ -248,7 +249,7 @@ std::shared_ptr<GameObject> LoadFiles::LoadFBX(const char* file_path)
 
     if (rootObject != nullptr)
     {
-        AutoScaleObject(rootObject);
+        NormalizeModelScale(rootObject, 5.0f);
 
         LOG("=== FBX LOADED SUCCESSFULLY ===");
         LOG("GameObject name: %s", rootObject->name.c_str());
@@ -274,6 +275,36 @@ std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* 
     std::shared_ptr<GameObject> gameObject = std::make_shared<GameObject>(node->mName.C_Str());
 
     auto transform = std::make_shared<ComponentTransform>(gameObject.get());
+
+    aiMatrix4x4 transformMatrix = node->mTransformation;
+
+    // Assimp: Row-major. GLM/OpenGL: Column-major
+    // We need to transpose the matrix when passing it to GLM
+    glm::mat4 glmTransform;
+    glmTransform[0][0] = transformMatrix.a1; glmTransform[0][1] = transformMatrix.b1; glmTransform[0][2] = transformMatrix.c1; glmTransform[0][3] = transformMatrix.d1;
+    glmTransform[1][0] = transformMatrix.a2; glmTransform[1][1] = transformMatrix.b2; glmTransform[1][2] = transformMatrix.c2; glmTransform[1][3] = transformMatrix.d2;
+    glmTransform[2][0] = transformMatrix.a3; glmTransform[2][1] = transformMatrix.b3; glmTransform[2][2] = transformMatrix.c3; glmTransform[2][3] = transformMatrix.d3;
+    glmTransform[3][0] = transformMatrix.a4; glmTransform[3][1] = transformMatrix.b4; glmTransform[3][2] = transformMatrix.c4; glmTransform[3][3] = transformMatrix.d4;
+
+    glm::vec3 position, scale, skew;
+    glm::quat rotation;
+    glm::vec4 perspective;
+
+    // Break down the local matrix of the node
+    if (glm::decompose(glmTransform, scale, rotation, position, skew, perspective))
+    {
+        transform->SetPosition(position);
+        transform->SetRotation(rotation);
+        transform->SetScale(scale);
+    }
+    else
+    {
+        LOG("Failed to decompose transformation matrix for node: %s", node->mName.C_Str());
+        transform->SetPosition(glm::vec3(0, 0, 0));
+        transform->SetRotation(glm::quat(1, 0, 0, 0));
+        transform->SetScale(glm::vec3(1, 1, 1));
+    }
+
     gameObject->AddComponent(transform);
 
     if (parent)
@@ -288,16 +319,21 @@ std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* 
         MeshData meshData;
         ProcessMesh(mesh, meshData);
 
-        std::shared_ptr<GameObject> meshObject = gameObject;
+        std::shared_ptr<GameObject> meshObject;
 
-        if (node->mNumMeshes > 1 && i > 0)
+        if (node->mNumMeshes == 1)
         {
-            std::string meshName = std::string(node->mName.C_Str()) + "_Mesh" + std::to_string(i);
+            // If 1 node = 1 mesh, use the same object
+            meshObject = gameObject;
+        }
+        else
+        {
+            // Else 1 node = N meshes, create childrens for extra meshes
+            std::string meshName = std::string(node->mName.C_Str()) + "_SubMesh_" + std::to_string(i);
             meshObject = std::make_shared<GameObject>(meshName);
-
             auto meshTransform = std::make_shared<ComponentTransform>(meshObject.get());
+            // The childrens of the multiple meshes usually are on 0, 0, 0 of the local origin
             meshObject->AddComponent(meshTransform);
-
             gameObject->AddChild(meshObject);
         }
 
@@ -309,6 +345,7 @@ std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* 
 
         LoadMaterialTextures(scene, mesh, meshObject, fbxDirectory);
 
+        // CleanUP
         delete[] meshData.vertices;
         delete[] meshData.indices;
         if (meshData.texCoords) delete[] meshData.texCoords;
@@ -316,6 +353,7 @@ std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* 
         if (meshData.colors) delete[] meshData.colors;
     }
 
+    // Process all the childrens
     for (unsigned int i = 0; i < node->mNumChildren; i++)
     {
         ProcessNode(node->mChildren[i], scene, gameObject, fbxDirectory);
@@ -655,65 +693,70 @@ void LoadFiles::ApplyTextureToAllChildren(std::shared_ptr<GameObject> go, unsign
     }
 }
 
-void LoadFiles::AutoScaleObject(std::shared_ptr<GameObject> rootObject)
+void LoadFiles::NormalizeModelScale(std::shared_ptr<GameObject> rootObject, float targetSize)
 {
-    if (rootObject == nullptr)
-        return;
+    if (rootObject == nullptr) return;
 
-    // Calculate the bounding box for the entire hierarchy
-    float minX = FLT_MAX, minY = FLT_MAX, minZ = FLT_MAX;
-    float maxX = -FLT_MAX, maxY = -FLT_MAX, maxZ = -FLT_MAX;
+    // Initialize the limits to the maximum/minimum possible
+    glm::vec3 minBounds(std::numeric_limits<float>::max());
+    glm::vec3 maxBounds(std::numeric_limits<float>::lowest());
 
-    CalculateHierarchyBounds(rootObject, minX, maxX, minY, maxY, minZ, maxZ);
+    // Initial identity matrix for the root
+    glm::mat4 identity(1.0f);
 
-    if (minX == FLT_MAX)
+    CalculateBoundingBox(rootObject, minBounds, maxBounds, identity);
+
+    // If no geometry was found, return
+    if (minBounds.x == std::numeric_limits<float>::max()) return;
+
+    // Calculate dimensions
+    glm::vec3 size = maxBounds - minBounds;
+    float maxDimension = std::max({ size.x, size.y, size.z });
+
+    LOG("Model Dimensions: %.2f x %.2f x %.2f (Max: %.2f)", size.x, size.y, size.z, maxDimension);
+
+    // Apply scale if necessary
+    if (maxDimension > 0.0f)
     {
-        LOG("No valid bounds found for auto-scaling");
-        return;
-    }
+        // Calculate the factor so that the largest dimension is exactly targetSize
+        float scale = targetSize / maxDimension;
 
-    // Calculate total size
-    float sizeX = maxX - minX;
-    float sizeY = maxY - minY;
-    float sizeZ = maxZ - minZ;
-    float maxSize = std::max({ sizeX, sizeY, sizeZ });
-
-    LOG("Total hierarchy size: %.2f x %.2f x %.2f (max: %.2f)", sizeX, sizeY, sizeZ, maxSize);
-
-    // If the object is very large, scale ONLY THE ROOT
-    float targetSize = 2.0f;
-
-    if (maxSize > targetSize)
-    {
-        float scale = targetSize / maxSize;
-
-        ComponentTransform* transform = rootObject->GetComponent<ComponentTransform>();
-        if (transform)
+        ComponentTransform* t = rootObject->GetComponent<ComponentTransform>();
+        if (t != nullptr)
         {
-            transform->scale = glm::vec3(scale, scale, scale);
-            LOG("Auto-scaled ROOT object by factor: %.4f (from %.2f to %.2f)", scale, maxSize, targetSize);
+            // We multiply the current scale by the new factor, to respect previous scales
+            glm::vec3 currentScale = t->scale;
+            t->SetScale(currentScale * scale);
         }
-    }
-    else
-    {
-        LOG("Object size is fine, no scaling needed");
+
+        LOG("Model normalized: %.2f -> scale=%.4f", maxDimension, scale);
     }
 }
 
-void LoadFiles::CalculateHierarchyBounds(std::shared_ptr<GameObject> go,
-    float& minX, float& maxX,
-    float& minY, float& maxY,
-    float& minZ, float& maxZ)
+void LoadFiles::CalculateBoundingBox(std::shared_ptr<GameObject> obj,
+    glm::vec3& minBounds, glm::vec3& maxBounds,
+    const glm::mat4& parentTransform)
 {
-    if (go == nullptr)
-        return;
+    if (obj == nullptr) return;
 
-    // If this GameObject has a mesh, process its vertices
-    ComponentMesh* mesh = go->GetComponent<ComponentMesh>();
-    if (mesh && mesh->VAO != 0)
+    // Calculate Local Transformation
+    glm::mat4 localTransform(1.0f);
+    ComponentTransform* t = obj->GetComponent<ComponentTransform>();
+
+    if (t != nullptr)
     {
-        // Get vertices from the VBO
-        glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
+        localTransform = t->GetModelMatrix();
+    }
+
+    // Calculate Cumulative Global Transformation
+    glm::mat4 worldTransform = parentTransform * localTransform;
+
+    // Process the mesh
+    ComponentMesh* meshComp = obj->GetComponent<ComponentMesh>();
+    if (meshComp != nullptr && meshComp->VAO != 0 && meshComp->VBO != 0)
+    {
+        // Read the vertex of the GPU
+        glBindBuffer(GL_ARRAY_BUFFER, meshComp->VBO);
 
         GLint bufferSize;
         glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &bufferSize);
@@ -721,34 +764,35 @@ void LoadFiles::CalculateHierarchyBounds(std::shared_ptr<GameObject> go,
 
         if (numVertices > 0)
         {
-            float* vertices = new float[numVertices * 3];
-            glGetBufferSubData(GL_ARRAY_BUFFER, 0, bufferSize, vertices);
+            // Temporary buffer
+            std::vector<float> vertices(numVertices * 3);
+            glGetBufferSubData(GL_ARRAY_BUFFER, 0, bufferSize, vertices.data());
 
-            // Update bounds
             for (int i = 0; i < numVertices; ++i)
             {
-                float x = vertices[i * 3 + 0];
-                float y = vertices[i * 3 + 1];
-                float z = vertices[i * 3 + 2];
+                // Get local position
+                glm::vec4 localVertex(vertices[i * 3], vertices[i * 3 + 1], vertices[i * 3 + 2], 1.0f);
 
-                minX = std::min(minX, x);
-                maxX = std::max(maxX, x);
-                minY = std::min(minY, y);
-                maxY = std::max(maxY, y);
-                minZ = std::min(minZ, z);
-                maxZ = std::max(maxZ, z);
+                // Transforming the world with the accumulated matrix
+                glm::vec4 worldVertex = worldTransform * localVertex;
+
+                // Expand limits (Min/Max)
+                minBounds.x = std::min(minBounds.x, worldVertex.x);
+                minBounds.y = std::min(minBounds.y, worldVertex.y);
+                minBounds.z = std::min(minBounds.z, worldVertex.z);
+
+                maxBounds.x = std::max(maxBounds.x, worldVertex.x);
+                maxBounds.y = std::max(maxBounds.y, worldVertex.y);
+                maxBounds.z = std::max(maxBounds.z, worldVertex.z);
             }
-
-            delete[] vertices;
         }
-
+        // Unlink
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
-    // Recursively process all children
-    for (const auto& child : go->GetChildren())
+    for (const auto& child : obj->GetChildren())
     {
-        CalculateHierarchyBounds(child, minX, maxX, minY, maxY, minZ, maxZ);
+        CalculateBoundingBox(child, minBounds, maxBounds, worldTransform);
     }
 }
 

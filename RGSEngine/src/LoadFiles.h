@@ -3,6 +3,7 @@
 #include "assimp/cimport.h"
 #include "assimp/scene.h"
 #include "assimp/postprocess.h"
+#include <glm/glm.hpp>
 #include <vector>
 #include <memory>
 #include <string>
@@ -52,15 +53,17 @@ private:
     std::shared_ptr<GameObject> ProcessNode(aiNode* node, const aiScene* scene, std::shared_ptr<GameObject> parent, const std::string& fbxDirectory);
 
     void LoadMaterialTextures(const aiScene* scene, aiMesh* mesh, std::shared_ptr<GameObject> gameObject, const std::string& fbxDirectory);
-    void ApplyTextureToAllChildren(std::shared_ptr<GameObject> go, unsigned int textureID, const char* path);
     unsigned int LoadTextureFromFile(const char* file_path);
 
-    //scale FBX size to enter screen
-    void AutoScaleObject(std::shared_ptr<GameObject> rootObject);
-    void CalculateHierarchyBounds(std::shared_ptr<GameObject> go,
-        float& minX, float& maxX,
-        float& minY, float& maxY,
-        float& minZ, float& maxZ);
+    void ApplyTextureToAllChildren(std::shared_ptr<GameObject> go, unsigned int textureID, const char* path);
+
+    // Escala el objeto raíz para que su mayor dimensión sea 'targetSize'
+    void NormalizeModelScale(std::shared_ptr<GameObject> rootObject, float targetSize = 5.0f);
+
+    // Calcula recursivamente los límites (AABB) en espacio mundial
+    void CalculateBoundingBox(std::shared_ptr<GameObject> obj,
+        glm::vec3& minBounds, glm::vec3& maxBounds,
+        const glm::mat4& parentTransform);
 
     aiLogStream stream;
 };

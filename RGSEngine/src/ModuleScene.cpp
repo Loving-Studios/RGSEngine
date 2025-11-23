@@ -59,7 +59,8 @@ bool ModuleScene::Start()
 
     // Camera Transform
     auto camTransform = std::make_shared<ComponentTransform>(cameraGO.get());
-    camTransform->SetPosition(glm::vec3(0.0f, 1.0f, 5.0f));
+    camTransform->SetPosition(glm::vec3(0.0f, 2.0f, 5.0f));
+    camTransform->SetRotation(glm::quat(glm::vec3(glm::radians(-15.0f), 0.0f, 0.0f)));
     cameraGO->AddComponent(camTransform);
 
     // Add ComponentCamera
@@ -70,15 +71,23 @@ bool ModuleScene::Start()
     AddGameObject(cameraGO);
 
     // Create the fbx from the start of the engine
-    std::shared_ptr<GameObject> baker_house =
-        Application::GetInstance().loadFiles->LoadFBX("../Assets/BakerHouse.fbx");
+    std::string streetPath = "../Assets/Street environment_V01.FBX";
 
-    if (baker_house) {
-        AddGameObject(baker_house);
+    std::shared_ptr<GameObject> streetEnv = Application::GetInstance().loadFiles->LoadFBX(streetPath.c_str());
+
+    if (streetEnv) {
+        AddGameObject(streetEnv);
     }
     else {
-        LOG("Failed to load BakerHouse.fbx on start. Creating Pyramid as fallback.");
-        CreatePyramid();
+        LOG("Street Environment not found. Loading BakerHouse fallback...");
+        std::shared_ptr<GameObject> bakerHouse = Application::GetInstance().loadFiles->LoadFBX("../Assets/BakerHouse.fbx");
+        if (bakerHouse) {
+            AddGameObject(bakerHouse);
+        }
+        else {
+            LOG("Failed to load BakerHouse.fbx on start. Creating Pyramid as fallback.");
+            CreatePyramid();
+        }
     }
 
     return true;
