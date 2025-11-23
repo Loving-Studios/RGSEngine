@@ -47,14 +47,50 @@ std::string OpenFileDialog(const char* filter)
     ZeroMemory(&ofn, sizeof(ofn));
 
     ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = nullptr;
+
+    // Get window and HWND
+    Window* winModule = Application::GetInstance().window.get();
+    SDL_Window* sdlWindow = winModule->window;
+    HWND hwnd = (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(sdlWindow), "SDL.window.win32.hwnd", NULL);
+
+    ofn.hwndOwner = hwnd;
     ofn.lpstrFilter = filter;
     ofn.lpstrFile = fileName;
     ofn.nMaxFile = MAX_PATH;
-    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
+    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
     ofn.lpstrDefExt = "";
 
-    if (GetOpenFileNameA(&ofn))
+    bool wasFullscreen = winModule->fullscreen;
+
+    if (wasFullscreen)
+    {
+        // Exit full screen mode
+        winModule->SetFullscreen(false);
+
+        for (int i = 0; i < 10; ++i)
+        {
+            SDL_PumpEvents();
+            // Force a swap so that Windows redraws the window frame
+            SDL_GL_SwapWindow(sdlWindow);
+            SDL_Delay(10);
+        }
+    }
+
+    // Open the dialogue window
+    BOOL result = GetOpenFileNameA(&ofn);
+
+    // Return to full screen if necessary
+    if (wasFullscreen)
+    {
+        winModule->SetFullscreen(true);
+        for (int i = 0; i < 5; ++i)
+        {
+            SDL_PumpEvents();
+            SDL_Delay(10);
+        }
+    }
+
+    if (result)
     {
         return std::string(fileName);
     }
@@ -483,6 +519,11 @@ void ModuleEditor::DrawHierarchyNode(GameObject* go)
 
     // Configuration the flags for the TreeNode
     ImGuiTreeNodeFlags nodeFlags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+
+    if (go->GetName() == "SceneRoot")
+    {
+        nodeFlags |= ImGuiTreeNodeFlags_DefaultOpen;
+    }
 
     // If it's the selected node it's applied the flag selectedGameObject
     if (go == selectedGameObject)
