@@ -215,9 +215,15 @@ bool ModuleEditor::Update(float dt)
     window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
     window_flags |= ImGuiWindowFlags_NoBackground;
 
+    // No padding and Rounding
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+
     // Start the Container Window
-    // Flagged as ImGuiWindowFlags_MenuBar so it can host the main menu
     ImGui::Begin("DockSpace", nullptr, window_flags);
+
+    ImGui::PopStyleVar(3);
 
     // ImGuizmo only used if there is a GameObject selected with transform
     ComponentTransform* targetTransform = (selectedGameObject) ? selectedGameObject->GetComponent<ComponentTransform>() : nullptr;
