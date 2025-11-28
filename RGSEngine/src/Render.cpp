@@ -17,6 +17,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 namespace NormalShaders
@@ -238,18 +239,28 @@ bool Render::PreUpdate()
 
 	if (input->IsAltPressed() && orbitTarget != nullptr)
 	{
+		// Calculate the real global centre
 		if (input->GetMouseButtonDown(SDL_BUTTON_LEFT) == KEY_DOWN)
 		{
 			isOrbiting = true;
 			input->GetMousePosition(orbitLastMouseX, orbitLastMouseY);
 
-			// Configurar el centro de órbita y la distancia
-			ComponentTransform* transform = orbitTarget->GetComponent<ComponentTransform>();
-			if (transform != nullptr)
-			{
-				orbitCenter = transform->position;
-				orbitDistance = glm::length(cameraPos - orbitCenter);
-			}
+			// Obtain the global matrix of the object
+			glm::mat4 globalMatrix = orbitTarget->GetGlobalMatrix();
+
+			// Temporary info to get the position of the object
+			glm::vec3 globalPos, globalScale, skew;
+			glm::quat globalRot;
+			glm::vec4 perspective;
+
+			// Decompose
+			glm::decompose(globalMatrix, globalScale, globalRot, globalPos, skew, perspective);
+
+			// Assign teh centre of the orbit to the global position
+			orbitCenter = globalPos;
+
+			// Calculate the distance to actual to mantain
+			orbitDistance = glm::length(cameraPos - orbitCenter);
 		}
 
 		if (input->GetMouseButtonDown(SDL_BUTTON_LEFT) == KEY_UP)
@@ -529,15 +540,24 @@ void Render::FocusOnGameObject(GameObject* go)
 	if (transform == nullptr)
 		return;
 
-	// Get the object position
-	glm::vec3 targetPos = transform->position;
+	// Obtain the real global matrix
+	glm::mat4 globalMatrix = go->GetGlobalMatrix();
 
-	//Calculate camera distance based on object size
-	float objectSize = glm::max(glm::max(transform->scale.x, transform->scale.y), transform->scale.z);
-	float distance = objectSize * 3.0f; // Multiplicador para dar espacio visual
+	// Decompose the matrix to obtain the global position and scale
+	glm::vec3 globalPos, globalScale, skew;
+	glm::quat globalRot;
+	glm::vec4 perspective;
+	glm::decompose(globalMatrix, globalScale, globalRot, globalPos, skew, perspective);
+
+	// Use the global position as objective
+	glm::vec3 targetPos = globalPos;
+
+	// Use the global scale to calculate the distance
+	float objectSize = glm::max(glm::max(globalScale.x, globalScale.y), globalScale.z);
+	// Calculate camera distance based on object size
+	float distance = objectSize * 3.0f;
 
 	// Minimum distance
-
 	if (distance < 2.0f)
 		distance = 2.0f;
 

@@ -243,7 +243,7 @@ std::shared_ptr<GameObject> LoadFiles::LoadFBX(const char* file_path)
     }
     else
     {
-        rootObject = ProcessNode(scene->mRootNode, scene, nullptr, fbxDirectory);
+        rootObject = ProcessNode(scene->mRootNode, scene, nullptr, fbxDirectory, glm::mat4(1.0f));
         if (rootObject)
             rootObject->name = fileName;
     }
@@ -273,28 +273,45 @@ std::shared_ptr<GameObject> LoadFiles::LoadFBX(const char* file_path)
     return rootObject;
 }
 
-std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* scene, std::shared_ptr<GameObject> parent, const std::string& fbxDirectory)
+std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* scene, std::shared_ptr<GameObject> parent, const std::string& fbxDirectory, glm::mat4 accumulatedTransform)
 {
-    std::shared_ptr<GameObject> gameObject = std::make_shared<GameObject>(node->mName.C_Str());
+    // Convert the transformation of the current node to GLM
+    aiMatrix4x4 transformMatrix = node->mTransformation;
+    glm::mat4 nodeTransform;
+    // Assimp is Row-Major, GLM is Column-Major -> Transpose
+    nodeTransform[0][0] = transformMatrix.a1; nodeTransform[0][1] = transformMatrix.b1; nodeTransform[0][2] = transformMatrix.c1; nodeTransform[0][3] = transformMatrix.d1;
+    nodeTransform[1][0] = transformMatrix.a2; nodeTransform[1][1] = transformMatrix.b2; nodeTransform[1][2] = transformMatrix.c2; nodeTransform[1][3] = transformMatrix.d2;
+    nodeTransform[2][0] = transformMatrix.a3; nodeTransform[2][1] = transformMatrix.b3; nodeTransform[2][2] = transformMatrix.c3; nodeTransform[2][3] = transformMatrix.d3;
+    nodeTransform[3][0] = transformMatrix.a4; nodeTransform[3][1] = transformMatrix.b4; nodeTransform[3][2] = transformMatrix.c4; nodeTransform[3][3] = transformMatrix.d4;
 
+    // Accumulate the transformation,matrix of the parent * matrix of this node
+    glm::mat4 localTransform = accumulatedTransform * nodeTransform;
+
+    // DETECT IF IT IS AN ASSIMP TRASH NODE $AssimpFbx$
+    std::string nodeName = node->mName.C_Str();
+    if (nodeName.find("$AssimpFbx$") != std::string::npos)
+    {
+        // Its a dummy node, skipped visually, dont create GameObject but process childrens giving the transformation accumulated so they dont lose the positiona and rotation
+        for (unsigned int i = 0; i < node->mNumChildren; i++)
+        {
+            // Pass the information
+            ProcessNode(node->mChildren[i], scene, parent, fbxDirectory, localTransform);
+        }
+        // Dont return anything because this node does not exist in our hierarchy
+        return nullptr;
+    }
+
+    // Its a normal node so we create a GameObject
+    std::shared_ptr<GameObject> gameObject = std::make_shared<GameObject>(nodeName);
     auto transform = std::make_shared<ComponentTransform>(gameObject.get());
 
-    aiMatrix4x4 transformMatrix = node->mTransformation;
-
-    // Assimp: Row-major. GLM/OpenGL: Column-major
-    // We need to transpose the matrix when passing it to GLM
-    glm::mat4 glmTransform;
-    glmTransform[0][0] = transformMatrix.a1; glmTransform[0][1] = transformMatrix.b1; glmTransform[0][2] = transformMatrix.c1; glmTransform[0][3] = transformMatrix.d1;
-    glmTransform[1][0] = transformMatrix.a2; glmTransform[1][1] = transformMatrix.b2; glmTransform[1][2] = transformMatrix.c2; glmTransform[1][3] = transformMatrix.d2;
-    glmTransform[2][0] = transformMatrix.a3; glmTransform[2][1] = transformMatrix.b3; glmTransform[2][2] = transformMatrix.c3; glmTransform[2][3] = transformMatrix.d3;
-    glmTransform[3][0] = transformMatrix.a4; glmTransform[3][1] = transformMatrix.b4; glmTransform[3][2] = transformMatrix.c4; glmTransform[3][3] = transformMatrix.d4;
-
+    // Decompose the accumulated matrix to apply it to the transform
     glm::vec3 position, scale, skew;
     glm::quat rotation;
     glm::vec4 perspective;
 
     // Break down the local matrix of the node
-    if (glm::decompose(glmTransform, scale, rotation, position, skew, perspective))
+    if (glm::decompose(localTransform, scale, rotation, position, skew, perspective))
     {
         transform->SetPosition(position);
         transform->SetRotation(rotation);
@@ -310,15 +327,16 @@ std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* 
 
     gameObject->AddComponent(transform);
 
+    // Add the parent, if exists
     if (parent)
     {
         parent->AddChild(gameObject);
     }
 
+    // Process Mesh
     for (unsigned int i = 0; i < node->mNumMeshes; i++)
     {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-
         MeshData meshData;
         ProcessMesh(mesh, meshData);
 
@@ -331,11 +349,9 @@ std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* 
         }
         else
         {
-            // Else 1 node = N meshes, create childrens for extra meshes
-            std::string meshName = std::string(node->mName.C_Str()) + "_SubMesh_" + std::to_string(i);
+            std::string meshName = nodeName + "_SubMesh_" + std::to_string(i);
             meshObject = std::make_shared<GameObject>(meshName);
             auto meshTransform = std::make_shared<ComponentTransform>(meshObject.get());
-            // The childrens of the multiple meshes usually are on 0, 0, 0 of the local origin
             meshObject->AddComponent(meshTransform);
             gameObject->AddChild(meshObject);
         }
@@ -359,7 +375,8 @@ std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* 
     // Process all the childrens
     for (unsigned int i = 0; i < node->mNumChildren; i++)
     {
-        ProcessNode(node->mChildren[i], scene, gameObject, fbxDirectory);
+        // As a real node is created, needs to reset the accumulation for the childrens because the local transformation will already be relative to the GameObject
+        ProcessNode(node->mChildren[i], scene, gameObject, fbxDirectory, glm::mat4(1.0f));
     }
 
     return gameObject;
