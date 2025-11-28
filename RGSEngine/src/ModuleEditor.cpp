@@ -784,6 +784,59 @@ void ModuleEditor::DrawInspectorWindow()
                         Application::GetInstance().loadFiles->LoadTexture(path.c_str(), selectedGameObject);
                     }
                 }
+                ImGui::Separator();
+                ImGui::Text("Transparency Settings");
+
+                // ALPHA TEST
+                ImGui::Checkbox("Enable Alpha Test", &texture->enableAlphaTest);
+                if (texture->enableAlphaTest)
+                {
+                    ImGui::SliderFloat("Alpha Threshold", &texture->alphaThreshold, 0.0f, 1.0f);
+                }
+
+                // BLENDING
+                ImGui::Checkbox("Enable Blending", &texture->enableBlending);
+                if (texture->enableBlending)
+                {
+                    // Selectors for mixing factors
+                    const char* items[] = { "GL_SRC_ALPHA", "GL_ONE", "GL_ZERO", "GL_ONE_MINUS_SRC_ALPHA" };
+                    static int currentSrc = 0; // GL_SRC_ALPHA by default
+                    static int currentDst = 3; // GL_ONE_MINUS_SRC_ALPHA by default
+
+                    if (ImGui::Combo("Source Factor", &currentSrc, items, IM_ARRAYSIZE(items))) {
+                        if (currentSrc == 0) texture->blendSrc = GL_SRC_ALPHA;
+                        if (currentSrc == 1) texture->blendSrc = GL_ONE;
+                        if (currentSrc == 2) texture->blendSrc = GL_ZERO;
+                        if (currentSrc == 3) texture->blendSrc = GL_ONE_MINUS_SRC_ALPHA;
+                    }
+                    if (ImGui::Combo("Dest Factor", &currentDst, items, IM_ARRAYSIZE(items))) {
+                        if (currentDst == 0) texture->blendDst = GL_SRC_ALPHA;
+                        if (currentDst == 1) texture->blendDst = GL_ONE;
+                        if (currentDst == 2) texture->blendDst = GL_ZERO;
+                        if (currentDst == 3) texture->blendDst = GL_ONE_MINUS_SRC_ALPHA;
+                    }
+                }
+
+                ImGui::Separator();
+
+                if (ImGui::Button("Apply Window Texture (Blending)"))
+                {
+                    Application::GetInstance().loadFiles->LoadTexture("../Assets/Transparency/blending_transparent_window.png", selectedGameObject);
+                    // Automatically configure for the window glass
+                    texture->enableBlending = true;
+                    texture->blendSrc = GL_SRC_ALPHA;
+                    texture->blendDst = GL_ONE_MINUS_SRC_ALPHA;
+                    texture->enableAlphaTest = false;
+                }
+
+                if (ImGui::Button("Apply Grass Texture (Alpha Test)"))
+                {
+                    Application::GetInstance().loadFiles->LoadTexture("../Assets/Transparency/grass.png", selectedGameObject);
+                    // Automatically configure for grass image
+                    texture->enableAlphaTest = true;
+                    texture->alphaThreshold = 0.1f;
+                    texture->enableBlending = false;
+                }
             }
             break;
         }

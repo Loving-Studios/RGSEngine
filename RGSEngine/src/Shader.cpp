@@ -28,13 +28,24 @@ namespace DefaultShaders
     #version 460 core
     out vec4 FragColor;
 
-    in vec2 TexCoord; // Receive the UVs from the Vertex Shader
-    uniform sampler2D tex1; // The texture set to show
+    in vec2 TexCoord; 
+    uniform sampler2D tex1; 
+    
+    // --- NUEVOS UNIFORMS ---
+    uniform bool enableAlphaTest;
+    uniform float alphaThreshold;
+    // -----------------------
 
     void main()
     {
-        //Instead of a fixed colour in the texture, reads from the texture
-        FragColor = texture(tex1, TexCoord); 
+        vec4 texColor = texture(tex1, TexCoord);
+
+        // --- LÓGICA ALPHA TEST ---
+        if(enableAlphaTest && texColor.a < alphaThreshold)
+            discard; // Descartamos el píxel si es muy transparente
+        // -------------------------
+
+        FragColor = texColor; 
     }
     )";
 }

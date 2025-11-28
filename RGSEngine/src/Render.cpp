@@ -403,15 +403,39 @@ void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 
 		// Link the texture
 		glActiveTexture(GL_TEXTURE0);
+
+		bool alphaTest = false;
+		float alphaCutoff = 0.0f;
+		bool blending = false;
+
 		if (texture != nullptr)
 		{
 			texture->Bind();
+
+			alphaTest = texture->enableAlphaTest;
+			alphaCutoff = texture->alphaThreshold;
+			blending = texture->enableBlending;
+
+			// BLENDING
+			if (blending) {
+				glEnable(GL_BLEND);
+				glBlendFunc(texture->blendSrc, texture->blendDst);
+			}
+			else {
+				glDisable(GL_BLEND);
+			}
 		}
 		else
 		{
 			// Use default checker texture
 			glBindTexture(GL_TEXTURE_2D, defaultCheckerTexture);
+			glDisable(GL_BLEND);
 		}
+
+		// Send Uniforms of Alpha Test to the shader
+		shader->SetBool("enableAlphaTest", alphaTest);
+		shader->SetFloat("alphaThreshold", alphaCutoff);
+
 		shader->SetInt("tex1", 0);
 
 		// Draw the mesh
@@ -419,6 +443,8 @@ void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 
 		// Unlink the texture
 		glBindTexture(GL_TEXTURE_2D, 0);
+
+		glDisable(GL_BLEND);
 
 		if (drawVertexNormals || drawFaceNormals)
 		{

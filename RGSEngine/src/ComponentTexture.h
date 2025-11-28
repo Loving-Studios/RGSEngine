@@ -52,4 +52,13 @@ public:
     bool useDefaultTexture;
     unsigned int originalTextureID;
     std::string originalPath;
+
+    // Alpha Test
+    bool enableAlphaTest = false;
+    float alphaThreshold = 0.5f;
+
+    // Blending
+    bool enableBlending = false;
+    GLenum blendSrc = GL_SRC_ALPHA;
+    GLenum blendDst = GL_ONE_MINUS_SRC_ALPHA;
 };
