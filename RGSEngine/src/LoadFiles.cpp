@@ -37,6 +37,9 @@ bool LoadFiles::Awake()
     ilInit();
     iluInit();
 
+    ilEnable(IL_ORIGIN_SET);
+    ilOriginFunc(IL_ORIGIN_UPPER_LEFT);
+
     // Verificar errores
     ILenum error = ilGetError();
     if (error != IL_NO_ERROR)

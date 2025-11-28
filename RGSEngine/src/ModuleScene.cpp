@@ -72,8 +72,6 @@ bool ModuleScene::Start()
 
     // Create the fbx from the start of the engine
     std::string streetPath = "../Assets/Street/Street environment_V01.FBX";
-    //std::string streetPath = "../Assets/Transparency/blending_transparent_window.png";
-    //std::string streetPath = "../Assets/Transparency/grass.png";
 
     std::shared_ptr<GameObject> streetEnv = Application::GetInstance().loadFiles->LoadFBX(streetPath.c_str());
 
