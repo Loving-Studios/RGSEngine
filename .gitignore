@@ -43,3 +43,23 @@ CMakeUserPresets.json
 
 # debug information files
 *.dwo
+
+# RGSEngine Specifics
+Library/
+Library
+
+# Visual Studio & IDE Junk
+.vs/
+.vscode/
+
+# User files
+*.user
+*.suo
+*.ipch
+*.db
+*.opensdf
+*.sdf
+
+# Windows generated
+Thumbs.db
+Desktop.ini

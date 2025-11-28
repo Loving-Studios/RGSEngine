@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.10)
 
 project(RGSEngine)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 find_package(SDL3 CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
@@ -13,6 +16,7 @@ file(GLOB SOURCES "src/*.cpp" "src/*.h")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/src PREFIX "Source" FILES ${SOURCES})
 add_executable(RGSEngine ${SOURCES})
 
+set_target_properties(RGSEngine PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(RGSEngine PRIVATE SDL3::SDL3)
 target_link_libraries(RGSEngine PRIVATE assimp::assimp)
 target_link_libraries(RGSEngine PRIVATE imgui::imgui)

@@ -71,7 +71,7 @@ bool ModuleScene::Start()
     AddGameObject(cameraGO);
 
     // Create the fbx from the start of the engine
-    std::string streetPath = "../Assets/Street/Street environment_V01.FBX";
+    std::string streetPath = "Assets/Street/Street environment_V01.FBX";
 
     std::shared_ptr<GameObject> streetEnv = Application::GetInstance().loadFiles->LoadFBX(streetPath.c_str());
 
@@ -80,7 +80,7 @@ bool ModuleScene::Start()
     }
     else {
         LOG("Street Environment not found. Loading BakerHouse fallback...");
-        std::shared_ptr<GameObject> bakerHouse = Application::GetInstance().loadFiles->LoadFBX("../Assets/BakerHouse/BakerHouse.fbx");
+        std::shared_ptr<GameObject> bakerHouse = Application::GetInstance().loadFiles->LoadFBX("Assets/BakerHouse/BakerHouse.fbx");
         if (bakerHouse) {
             AddGameObject(bakerHouse);
         }

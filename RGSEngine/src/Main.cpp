@@ -1,9 +1,42 @@
 #include <iostream>
 #include <glad/glad.h>
+#include <stdlib.h>
 #include "Application.h"
 #include "Log.h"
 
+#include <filesystem>
+namespace fs = std::filesystem;
+
+enum MainState
+{
+	CREATE = 1,
+	AWAKE,
+	START,
+	LOOP,
+	CLEAN,
+	FAIL,
+	EXIT
+};
+
+std::unique_ptr<Application> App = nullptr;
+
 int main(int argc, char* argv[]) {
+
+	fs::path cwd = fs::current_path();
+
+	if (cwd.filename() == "build" || cwd.filename() == "Debug" || cwd.filename() == "Release")
+	{
+		fs::current_path(cwd.parent_path());
+		LOG("Working Directory corrected to: %s", fs::current_path().string().c_str());
+	}
+	else if (!fs::exists("Assets"))
+	{
+		if (fs::exists(cwd.parent_path() / "Assets"))
+		{
+			fs::current_path(cwd.parent_path());
+			LOG("Working Directory corrected to: %s", fs::current_path().string().c_str());
+		}
+	}
 
 	LOG("Application starting ...");
 

@@ -16,6 +16,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <algorithm>
 #include <cfloat> 
+#include <fstream>
+
+#include <filesystem>
 
 LoadFiles::LoadFiles()
 {
@@ -58,6 +61,16 @@ bool LoadFiles::Awake()
 bool LoadFiles::Start()
 {
     LOG("Starting LoadFiles module");
+
+    // Custom File Format, create them automatically on start if they are deleted
+    if (!std::filesystem::exists("Library"))
+        std::filesystem::create_directory("Library");
+
+    if (!std::filesystem::exists("Library/Meshes"))
+        std::filesystem::create_directory("Library/Meshes");
+
+    if (!std::filesystem::exists("Library/Textures"))
+        std::filesystem::create_directory("Library/Textures");
 
     return true;
 }
@@ -384,87 +397,75 @@ std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* 
 
 void LoadFiles::ProcessMesh(aiMesh* aiMesh, MeshData& meshData)
 {
-    // Copy vertices
+    // 1. Generar el nombre del archivo en Library
+    std::string meshName = aiMesh->mName.C_Str();
+    if (meshName.empty()) meshName = "generated_mesh_" + std::to_string(aiMesh->mNumVertices);
+
+    // IMPORTANTE: En el futuro usarás UIDs, por ahora usamos el nombre para simplificar
+    std::string libraryPath = "Library/Meshes/" + meshName + ".rgs";
+
+    // -------------------------------------------------------
+    // INTENTO 1: CARGAR DESDE LIBRARY (Formato Propio)
+    // -------------------------------------------------------
+    // Comprobamos si el archivo ya existe. Si existe, cargamos ese y nos saltamos Assimp.
+    std::ifstream checkFile(libraryPath);
+    if (checkFile.good())
+    {
+        checkFile.close(); // Cerramos el check
+
+        // Intentamos cargar
+        if (LoadMeshFromCustomFormat(libraryPath.c_str(), meshData))
+        {
+            LOG("Resources: Loaded mesh from Library (FAST): %s", libraryPath.c_str());
+            return; // ¡ÉXITO! Ya tenemos los datos, salimos de la función.
+        }
+    }
+
+    // -------------------------------------------------------
+    // INTENTO 2: IMPORTAR DESDE ASSIMP (Lento)
+    // -------------------------------------------------------
+    // Si llegamos aquí es porque no existía en Library. Toca hacerlo a la antigua.
+    LOG("Resources: Importing mesh from FBX (SLOW)...");
+
     meshData.num_vertices = aiMesh->mNumVertices;
     meshData.vertices = new float[meshData.num_vertices * 3];
     memcpy(meshData.vertices, aiMesh->mVertices, sizeof(float) * meshData.num_vertices * 3);
-    LOG("Processing mesh '%s' with %d vertices", aiMesh->mName.C_Str(), meshData.num_vertices);
 
-    // Copiar normales
+    if (aiMesh->HasFaces())
+    {
+        meshData.num_indices = aiMesh->mNumFaces * 3;
+        meshData.indices = new unsigned int[meshData.num_indices];
+        for (unsigned int i = 0; i < aiMesh->mNumFaces; i++)
+        {
+            memcpy(&meshData.indices[i * 3], aiMesh->mFaces[i].mIndices, 3 * sizeof(unsigned int));
+        }
+    }
+
+    // Normales
     if (aiMesh->HasNormals())
     {
         meshData.hasNormals = true;
         meshData.normals = new float[meshData.num_vertices * 3];
         memcpy(meshData.normals, aiMesh->mNormals, sizeof(float) * meshData.num_vertices * 3);
-        LOG("  - Has normals");
     }
 
-    // Copy texture coordinates
+    // UVs
     if (aiMesh->HasTextureCoords(0))
     {
         meshData.hasTexCoords = true;
         meshData.texCoords = new float[meshData.num_vertices * 2];
-
-        for (unsigned int i = 0; i < aiMesh->mNumVertices; ++i)
+        for (unsigned int i = 0; i < meshData.num_vertices; i++)
         {
             meshData.texCoords[i * 2] = aiMesh->mTextureCoords[0][i].x;
             meshData.texCoords[i * 2 + 1] = aiMesh->mTextureCoords[0][i].y;
         }
-        LOG("  - Has texture coordinates");
-
-        float minU = FLT_MAX, maxU = -FLT_MAX;
-        float minV = FLT_MAX, maxV = -FLT_MAX;
-
-        for (unsigned int i = 0; i < aiMesh->mNumVertices; ++i)
-        {
-            float u = meshData.texCoords[i * 2];
-            float v = meshData.texCoords[i * 2 + 1];
-            minU = std::min(minU, u);
-            maxU = std::max(maxU, u);
-            minV = std::min(minV, v);
-            maxV = std::max(maxV, v);
-        }
-
-        LOG("  - UV range: U[%.2f, %.2f] V[%.2f, %.2f]", minU, maxU, minV, maxV);
-    }
-    else{ LOG("  - NO texture coordinates"); }
-
-    // Copy vertex colors
-    if (aiMesh->HasVertexColors(0))
-    {
-        meshData.hasColors = true;
-        meshData.colors = new float[meshData.num_vertices * 4]; // RGBA
-
-        for (unsigned int i = 0; i < aiMesh->mNumVertices; ++i)
-        {
-            meshData.colors[i * 4 + 0] = aiMesh->mColors[0][i].r;
-            meshData.colors[i * 4 + 1] = aiMesh->mColors[0][i].g;
-            meshData.colors[i * 4 + 2] = aiMesh->mColors[0][i].b;
-            meshData.colors[i * 4 + 3] = aiMesh->mColors[0][i].a;
-        }
-        LOG("  - Has vertex colors");
     }
 
-    // Copy indexes
-    if (aiMesh->HasFaces())
-    {
-        meshData.num_indices = aiMesh->mNumFaces * 3;
-        meshData.indices = new unsigned int[meshData.num_indices];
-
-        for (unsigned int i = 0; i < aiMesh->mNumFaces; ++i)
-        {
-            if (aiMesh->mFaces[i].mNumIndices != 3)
-            {
-                LOG("  - WARNING: Face with != 3 indices!");
-            }
-            else
-            {
-                memcpy(&meshData.indices[i * 3], aiMesh->mFaces[i].mIndices, 3 * sizeof(unsigned int));
-            }
-        }
-
-        LOG("  - %d indices (%d triangles)", meshData.num_indices, aiMesh->mNumFaces);
-    }
+    // -------------------------------------------------------
+    // GUARDAR EN LIBRARY PARA LA PRÓXIMA
+    // -------------------------------------------------------
+    SaveMeshToCustomFormat(libraryPath.c_str(), meshData);
+    LOG("Resources: Saved mesh to Library: %s", libraryPath.c_str());
 }
 
 std::shared_ptr<GameObject> LoadFiles::CreateGameObjectFromMesh(const MeshData& meshData, const char* name)
@@ -548,10 +549,6 @@ void LoadFiles::LoadMaterialTextures(const aiScene* scene, aiMesh* mesh, std::sh
                         loadedPath = path;
                         LOG("SUCCESS!");
                         break;
-                    }
-                    else
-                    {
-                        LOG("Failed");
                     }
                 }
 
@@ -856,5 +853,114 @@ bool LoadFiles::LoadMeshFromFile(const char* file_path, GameObject* target)
 
     aiReleaseImport(scene);
     LOG("Mesh replaced from: %s", file_path);
+    return true;
+}
+
+bool LoadFiles::SaveMeshToCustomFormat(const char* path, const MeshData& meshData)
+{
+    // Open the file in binary mode and truncate, and overwrite
+    std::ofstream file(path, std::ios::binary | std::ios::trunc);
+
+    if (!file.is_open())
+    {
+        LOG("Error: Could not open file for writing: %s", path);
+        return false;
+    }
+
+    // Prepare and write the header
+    MeshFileHeader header;
+    header.numVertices = meshData.num_vertices;
+    header.numIndices = meshData.num_indices;
+    header.hasNormals = meshData.hasNormals;
+    header.hasTexCoords = meshData.hasTexCoords;
+    header.hasColors = meshData.hasColors;
+
+    // Write the header structure as it is in memory
+    file.write((char*)&header, sizeof(MeshFileHeader));
+
+    // Write the array data
+
+    // Vertexs -> 3 floats each vertex
+    file.write((char*)meshData.vertices, sizeof(float) * header.numVertices * 3);
+
+    // Index
+    file.write((char*)meshData.indices, sizeof(unsigned int) * header.numIndices);
+
+    // Normals, optional
+    if (header.hasNormals)
+    {
+        file.write((char*)meshData.normals, sizeof(float) * header.numVertices * 3);
+    }
+
+    // UVs, optional
+    if (header.hasTexCoords)
+    {
+        file.write((char*)meshData.texCoords, sizeof(float) * header.numVertices * 2);
+    }
+
+    // Colors, optional
+    if (header.hasColors)
+    {
+        file.write((char*)meshData.colors, sizeof(float) * header.numVertices * 4);
+    }
+
+    file.close();
+    LOG("Success: Mesh saved to custom format: %s", path);
+    return true;
+}
+
+bool LoadFiles::LoadMeshFromCustomFormat(const char* path, MeshData& meshData)
+{
+    // Open binary mode
+    std::ifstream file(path, std::ios::binary);
+    if (!file.is_open())
+    {
+        LOG("Error: Could not open custom mesh file: %s", path);
+        return nullptr;
+    }
+
+    // Read header
+    MeshFileHeader header;
+    file.read((char*)&header, sizeof(MeshFileHeader));
+
+    // Reserve temporary memory to read the data
+    // Creation of a local MeshData to send later to the ComponentMesh
+    meshData.num_vertices = header.numVertices;
+    meshData.num_indices = header.numIndices;
+    meshData.hasNormals = header.hasNormals;
+    meshData.hasTexCoords = header.hasTexCoords;
+    meshData.hasColors = header.hasColors;
+
+    // Vertex
+    meshData.vertices = new float[header.numVertices * 3];
+    file.read((char*)meshData.vertices, sizeof(float) * header.numVertices * 3);
+
+    // Index
+    meshData.indices = new unsigned int[header.numIndices];
+    file.read((char*)meshData.indices, sizeof(unsigned int) * header.numIndices);
+
+    // Normals
+    if (header.hasNormals)
+    {
+        meshData.normals = new float[header.numVertices * 3];
+        file.read((char*)meshData.normals, sizeof(float) * header.numVertices * 3);
+    }
+
+    // UVs
+    if (header.hasTexCoords)
+    {
+        meshData.texCoords = new float[header.numVertices * 2];
+        file.read((char*)meshData.texCoords, sizeof(float) * header.numVertices * 2);
+    }
+
+    // Colors
+    if (header.hasColors)
+    {
+        meshData.colors = new float[header.numVertices * 4];
+        file.read((char*)meshData.colors, sizeof(float) * header.numVertices * 4);
+    }
+
+    file.close();
+    LOG("Success: Mesh loaded from custom format: %s", path);
     return true;
 }

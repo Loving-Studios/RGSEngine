@@ -821,7 +821,7 @@ void ModuleEditor::DrawInspectorWindow()
 
                 if (ImGui::Button("Apply Window Texture (Blending)"))
                 {
-                    Application::GetInstance().loadFiles->LoadTexture("../Assets/Transparency/blending_transparent_window.png", selectedGameObject);
+                    Application::GetInstance().loadFiles->LoadTexture("Assets/Transparency/blending_transparent_window.png", selectedGameObject);
                     // Automatically configure for the window glass
                     texture->enableBlending = true;
                     texture->blendSrc = GL_SRC_ALPHA;
@@ -831,7 +831,7 @@ void ModuleEditor::DrawInspectorWindow()
 
                 if (ImGui::Button("Apply Grass Texture (Alpha Test)"))
                 {
-                    Application::GetInstance().loadFiles->LoadTexture("../Assets/Transparency/grass.png", selectedGameObject);
+                    Application::GetInstance().loadFiles->LoadTexture("Assets/Transparency/grass.png", selectedGameObject);
                     // Automatically configure for grass image
                     texture->enableAlphaTest = true;
                     texture->alphaThreshold = 0.1f;

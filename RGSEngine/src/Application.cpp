@@ -13,6 +13,8 @@
 #include <glm/gtc/quaternion.hpp>
 #include <SDL3/SDL_scancode.h>
 
+#include <filesystem>
+
 // Constructor
 Application::Application() {
 
@@ -54,6 +56,8 @@ void Application::AddModule(std::shared_ptr<Module> module) {
 bool Application::Awake() {
 
     LOG("Application::Awake");
+
+    std::cout << "DIRECTORIO ACTUAL: " << std::filesystem::current_path() << std::endl;
 
     //Iterates the module list and calls Awake on each module
     bool result = true;
