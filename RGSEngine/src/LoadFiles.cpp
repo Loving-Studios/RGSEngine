@@ -36,6 +36,16 @@ bool LoadFiles::Awake()
 {
     LOG("Loading LoadFiles module");
 
+    // Custom File Format, create them automatically on start if they are deleted
+    if (!std::filesystem::exists("Library"))
+        std::filesystem::create_directory("Library");
+
+    if (!std::filesystem::exists("Library/Meshes"))
+        std::filesystem::create_directory("Library/Meshes");
+
+    if (!std::filesystem::exists("Library/Textures"))
+        std::filesystem::create_directory("Library/Textures");
+
     // Inicializar DevIL
     ilInit();
     iluInit();
@@ -61,16 +71,6 @@ bool LoadFiles::Awake()
 bool LoadFiles::Start()
 {
     LOG("Starting LoadFiles module");
-
-    // Custom File Format, create them automatically on start if they are deleted
-    if (!std::filesystem::exists("Library"))
-        std::filesystem::create_directory("Library");
-
-    if (!std::filesystem::exists("Library/Meshes"))
-        std::filesystem::create_directory("Library/Meshes");
-
-    if (!std::filesystem::exists("Library/Textures"))
-        std::filesystem::create_directory("Library/Textures");
 
     return true;
 }
@@ -543,7 +543,7 @@ void LoadFiles::LoadMaterialTextures(const aiScene* scene, aiMesh* mesh, std::sh
                 for (const auto& path : possiblePaths)
                 {
                     LOG("  - Trying: %s", path.c_str());
-                    textureID = LoadTextureFromFile(path.c_str());
+                    textureID = LoadTexture(path.c_str());
                     if (textureID != 0)
                     {
                         loadedPath = path;
@@ -557,6 +557,14 @@ void LoadFiles::LoadMaterialTextures(const aiScene* scene, aiMesh* mesh, std::sh
                     auto texComponent = std::make_shared<ComponentTexture>(gameObject.get());
                     texComponent->textureID = textureID;
                     texComponent->path = loadedPath;
+
+                    std::string pathString(loadedPath);
+                    std::string filename = pathString.substr(pathString.find_last_of("/\\") + 1);
+                    size_t lastDot = filename.find_last_of(".");
+                    if (lastDot != std::string::npos) filename = filename.substr(0, lastDot);
+
+                    texComponent->libraryPath = "Library/Textures/" + filename + ".rgst";
+
                     gameObject->AddComponent(texComponent);
 
                     LOG("TEXTURE LOADED AND APPLIED: %s (OpenGL ID: %d)",
@@ -570,61 +578,10 @@ void LoadFiles::LoadMaterialTextures(const aiScene* scene, aiMesh* mesh, std::sh
     }
     else{ LOG("Mesh has no material assigned"); }
 }
-unsigned int LoadFiles::LoadTextureFromFile(const char* file_path)
-{
-    ILuint imageID;
-    ilGenImages(1, &imageID);
-    ilBindImage(imageID);
-
-    // Load image
-    if (!ilLoadImage(file_path))
-    {
-        ILenum error = ilGetError();
-        LOG("DevIL Error loading image: %d", error);
-        ilDeleteImages(1, &imageID);
-        return 0;
-    }
-
-    // Convert to RGBA format
-    if (!ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE))
-    {
-        LOG("DevIL Error converting image");
-        ilDeleteImages(1, &imageID);
-        return 0;
-    }
-
-    // Get image data
-    ILubyte* data = ilGetData();
-    ILint width = ilGetInteger(IL_IMAGE_WIDTH);
-    ILint height = ilGetInteger(IL_IMAGE_HEIGHT);
-
-    // Create texture 
-    GLuint textureID;
-    glGenTextures(1, &textureID);
-    glBindTexture(GL_TEXTURE_2D, textureID);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    // Clean DevIL
-    ilDeleteImages(1, &imageID);
-
-    LOG("Texture created: %dx%d, OpenGL ID: %d", width, height, textureID);
-
-    return textureID;
-}
 
 bool LoadFiles::LoadTexture(const char* file_path, GameObject* target)
 {
-    LOG("=== DRAG & DROP TEXTURE ===");
-    LOG("Loading texture: %s", file_path);
+    LOG("=== TEXTURE LOADING SYSTEM ===");
 
     if (target == nullptr)
     {
@@ -632,7 +589,13 @@ bool LoadFiles::LoadTexture(const char* file_path, GameObject* target)
         return false;
     }
 
-    unsigned int textureID = LoadTextureFromFile(file_path);
+    std::string pathString(file_path);
+    std::string filename = pathString.substr(pathString.find_last_of("/\\") + 1);
+    size_t lastDot = filename.find_last_of(".");
+    if (lastDot != std::string::npos) filename = filename.substr(0, lastDot);
+    std::string internalPath = "Library/Textures/" + filename + ".rgst";
+
+    unsigned int textureID = LoadTexture(file_path);
 
     if (textureID == 0)
     {
@@ -642,38 +605,35 @@ bool LoadFiles::LoadTexture(const char* file_path, GameObject* target)
 
     LOG("Texture loaded successfully (ID: %d)", textureID);
 
-    // Check if the Component has a Mesh to apply the texture
-    if (target->GetComponent<ComponentMesh>() != nullptr)
+// Check if the Component has a Mesh to apply the texture
+if (target->GetComponent<ComponentMesh>() != nullptr)
+{
+    auto textureComp = target->GetComponent<ComponentTexture>();
+    if (textureComp)
     {
-        auto textureComp = target->GetComponent<ComponentTexture>();
-
-        if (textureComp != nullptr)
-        {
-            // If has a component, update the data
-            textureComp->textureID = textureID;
-            textureComp->path = file_path;
-            // Remove the default flag to see the new one
-            textureComp->useDefaultTexture = false;
-
-            LOG("Texture component UPDATED on GameObject: %s", target->GetName().c_str());
-        }
-        else
-        {
-            // If doesn't have a component, assign a new one
-            auto newTex = std::make_shared<ComponentTexture>(target);
-            newTex->textureID = textureID;
-            newTex->path = file_path;
-            target->AddComponent(newTex);
-
-            LOG("Texture component ADDED to GameObject: %s", target->GetName().c_str());
-        }
+        // If has a component, update the data
+        textureComp->textureID = textureID;
+        // Save the original path by reference, Asset
+        textureComp->path = file_path;
+        textureComp->libraryPath = internalPath;
+        // Remove the default flag to see the new one
+        textureComp->useDefaultTexture = false;
+        LOG("Texture component UPDATED on GameObject: %s", target->GetName().c_str());
     }
     else
     {
-        LOG("WARNING: Selected object '%s' has no Mesh. Texture loaded but not applied.", target->GetName().c_str());
+        // If doesn't have a component, assign a new one
+        auto newTex = std::make_shared<ComponentTexture>(target);
+        newTex->textureID = textureID;
+        newTex->path = file_path;
+        newTex->libraryPath = internalPath;
+        target->AddComponent(newTex);
+        LOG("Texture component ADDED to GameObject: %s", target->GetName().c_str());
     }
-
+    LOG("Texture applied to %s (Internal: %s)", target->GetName().c_str(), internalPath.c_str());
     return true;
+}
+return false;
 }
 
 void LoadFiles::ApplyTextureToAllChildren(std::shared_ptr<GameObject> go, unsigned int textureID, const char* path)
@@ -963,4 +923,143 @@ bool LoadFiles::LoadMeshFromCustomFormat(const char* path, MeshData& meshData)
     file.close();
     LOG("Success: Mesh loaded from custom format: %s", path);
     return true;
+}
+
+unsigned int LoadFiles::LoadTexture(const char* file_path)
+{
+    // Generate the destination path in Library
+    std::string pathString(file_path);
+    std::string filename = pathString.substr(pathString.find_last_of("/\\") + 1);
+
+    // Remove the original extension and replace it with our own .rgst
+    size_t lastDot = filename.find_last_of(".");
+    if (lastDot != std::string::npos) filename = filename.substr(0, lastDot);
+    std::string libraryPath = "Library/Textures/" + filename + ".rgst";
+
+    TextureHeader header;
+    char* buffer = nullptr;
+    unsigned int textureID = 0;
+
+    // Check if it already exists in Library
+    std::ifstream f(libraryPath.c_str());
+    if (f.good())
+    {
+        f.close();
+        LOG("Texture found in Library, loading custom format: %s", libraryPath.c_str());
+        if (LoadTextureFromCustomFormat(libraryPath.c_str(), header, buffer))
+        {
+            textureID = CreateTextureFromBuffer(header, buffer);
+            // Clean RAM memory, is already in VRAM
+            delete[] buffer;
+            return textureID;
+        }
+    }
+
+    // If it does not exist or failed to load, we import with DevIL slow path to load
+    LOG("Texture NOT found in Library, importing with DevIL: %s", file_path);
+    if (ImportTextureWithDevIL(file_path, buffer, header))
+    {
+        // Save it in Library for next time
+        SaveTextureToCustomFormat(libraryPath.c_str(), header, buffer);
+
+        // Create the texture in OpenGL
+        textureID = CreateTextureFromBuffer(header, buffer);
+        delete[] buffer;
+    }
+
+    return textureID;
+}
+
+bool LoadFiles::ImportTextureWithDevIL(const char* path, char*& buffer, TextureHeader& header)
+{
+    ILuint imageID;
+    ilGenImages(1, &imageID);
+    ilBindImage(imageID);
+
+    if (!ilLoadImage(path))
+    {
+        LOG("DevIL Error loading: %s", path);
+        ilDeleteImages(1, &imageID);
+        return false;
+    }
+
+    // Force conversion to RGBA to standardize the format
+    if (!ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE))
+    {
+        LOG("DevIL Error converting image");
+        ilDeleteImages(1, &imageID);
+        return false;
+    }
+
+    // Fill the header
+    header.width = ilGetInteger(IL_IMAGE_WIDTH);
+    header.height = ilGetInteger(IL_IMAGE_HEIGHT);
+    // Save in RGBA
+    header.format = GL_RGBA;
+    // 4 bytes per pixel, RBGA 
+    header.dataSize = header.width * header.height * 4;
+
+    // Copy the data from DevIL to our buffer
+    buffer = new char[header.dataSize];
+    memcpy(buffer, ilGetData(), header.dataSize);
+
+    ilDeleteImages(1, &imageID);
+    return true;
+}
+
+bool LoadFiles::SaveTextureToCustomFormat(const char* path, const TextureHeader& header, const char* buffer)
+{
+    std::ofstream file(path, std::ios::binary | std::ios::trunc);
+    if (!file.is_open())
+    {
+        LOG("Error saving custom texture: %s", path);
+        return false;
+    }
+
+    // Write header
+    file.write((const char*)&header, sizeof(TextureHeader));
+
+    // Write Pixel Data
+    file.write(buffer, header.dataSize);
+
+    file.close();
+    LOG("Texture saved to Library: %s", path);
+    return true;
+}
+
+bool LoadFiles::LoadTextureFromCustomFormat(const char* path, TextureHeader& header, char*& buffer)
+{
+    std::ifstream file(path, std::ios::binary);
+    if (!file.is_open()) return false;
+
+    // Read header
+    file.read((char*)&header, sizeof(TextureHeader));
+
+    // Reserve memory and read data
+    buffer = new char[header.dataSize];
+    file.read(buffer, header.dataSize);
+
+    file.close();
+    return true;
+}
+
+unsigned int LoadFiles::CreateTextureFromBuffer(const TextureHeader& header, const char* buffer)
+{
+    GLuint textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+
+    // Basic parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // Upload data to the GPU
+    glTexImage2D(GL_TEXTURE_2D, 0, header.format, header.width, header.height, 0, header.format, GL_UNSIGNED_BYTE, buffer);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    LOG("Texture created in OpenGL (ID: %d) from buffer", textureID);
+    return textureID;
 }

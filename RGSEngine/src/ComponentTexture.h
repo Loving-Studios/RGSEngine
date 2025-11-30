@@ -48,6 +48,7 @@ public:
     int width;
     int height;
     std::string path; // Keep the path for the Inspector
+    std::string libraryPath; // Internal path Library/Textures/
 
     bool useDefaultTexture;
     unsigned int originalTextureID;

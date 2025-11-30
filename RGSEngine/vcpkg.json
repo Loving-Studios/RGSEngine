@@ -12,6 +12,7 @@
         "sdl3-binding"
       ]
     },
+    "nlohmann-json",
     "sdl3"
   ]
 }

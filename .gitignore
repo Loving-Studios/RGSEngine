@@ -17,6 +17,7 @@
 vcpkg/
 build/
 CMakeUserPresets.json
+imgui.ini
 
 # Debugger Files
 *.pdb
@@ -63,3 +64,8 @@ Library
 # Windows generated
 Thumbs.db
 Desktop.ini
+
+# Imgui
+RGSEngine/imgui.ini
+RGSEngine/imgui.ini
+*.ini

@@ -770,6 +770,9 @@ void ModuleEditor::DrawInspectorWindow()
 
                 // Texture info
                 ImGui::Text("Path: %s", texture->path.c_str());
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+                ImGui::Text("Internal: %s", texture->libraryPath.c_str());
+                ImGui::PopStyleColor();
                 ImGui::Text("Size: %d x %d", texture->width, texture->height);
                 ImGui::Text("Texture ID: %d", texture->textureID);
 
