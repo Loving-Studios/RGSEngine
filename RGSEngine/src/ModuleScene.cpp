@@ -13,6 +13,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <nlohmann/json.hpp>
+
 static void CreateDefaultCheckerTexture(std::shared_ptr<ComponentTexture> texture)
 {
     const int texWidth = 8, texHeight = 8;
