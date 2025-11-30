@@ -5,6 +5,7 @@
 #include "Log.h"
 #include <vector>
 #include <glm/glm.hpp>
+#include <string>
 
 class ComponentMesh : public Component
 {
@@ -282,6 +283,9 @@ public:
     }
 
 public:
+    std::string path;
+    std::string libraryPath;
+
     unsigned int VAO;
     unsigned int VBO;
     unsigned int VBO_UV;

@@ -24,6 +24,8 @@ struct MeshData
     bool hasNormals = false;
     bool hasTexCoords = false;
     bool hasColors = false;
+
+    std::string libraryPath;
 };
 
 // Own format file header .rgs
@@ -74,8 +76,8 @@ public:
 private:
 
     void ProcessMesh(aiMesh* aiMesh, MeshData& meshData);
-    std::shared_ptr<GameObject> CreateGameObjectFromMesh(const MeshData& meshData, const char* name);
-    std::shared_ptr<GameObject> ProcessNode(aiNode* node, const aiScene* scene, std::shared_ptr<GameObject> parent, const std::string& fbxDirectory, glm::mat4 accumulatedTransform = glm::mat4(1.0f));
+    std::shared_ptr<GameObject> CreateGameObjectFromMesh(const MeshData& meshData, const char* name, const char* assetPath);
+    std::shared_ptr<GameObject> ProcessNode(aiNode* node, const aiScene* scene, std::shared_ptr<GameObject> parent, const std::string& fbxDirectory, const char* assetPath, glm::mat4 accumulatedTransform = glm::mat4(1.0f));
 
     void LoadMaterialTextures(const aiScene* scene, aiMesh* mesh, std::shared_ptr<GameObject> gameObject, const std::string& fbxDirectory);
 

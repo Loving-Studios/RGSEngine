@@ -242,7 +242,7 @@ std::shared_ptr<GameObject> LoadFiles::LoadFBX(const char* file_path)
     {
         MeshData meshData;
         ProcessMesh(scene->mMeshes[0], meshData);
-        rootObject = CreateGameObjectFromMesh(meshData, fileName.c_str());
+        rootObject = CreateGameObjectFromMesh(meshData, fileName.c_str(), file_path);
 
         
         LoadMaterialTextures(scene, scene->mMeshes[0], rootObject, fbxDirectory);
@@ -256,7 +256,7 @@ std::shared_ptr<GameObject> LoadFiles::LoadFBX(const char* file_path)
     }
     else
     {
-        rootObject = ProcessNode(scene->mRootNode, scene, nullptr, fbxDirectory, glm::mat4(1.0f));
+        rootObject = ProcessNode(scene->mRootNode, scene, nullptr, fbxDirectory, file_path, glm::mat4(1.0f));
         if (rootObject)
             rootObject->name = fileName;
     }
@@ -286,7 +286,7 @@ std::shared_ptr<GameObject> LoadFiles::LoadFBX(const char* file_path)
     return rootObject;
 }
 
-std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* scene, std::shared_ptr<GameObject> parent, const std::string& fbxDirectory, glm::mat4 accumulatedTransform)
+std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* scene, std::shared_ptr<GameObject> parent, const std::string& fbxDirectory, const char* assetPath, glm::mat4 accumulatedTransform)
 {
     // Convert the transformation of the current node to GLM
     aiMatrix4x4 transformMatrix = node->mTransformation;
@@ -308,7 +308,7 @@ std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* 
         for (unsigned int i = 0; i < node->mNumChildren; i++)
         {
             // Pass the information
-            ProcessNode(node->mChildren[i], scene, parent, fbxDirectory, localTransform);
+            ProcessNode(node->mChildren[i], scene, parent, fbxDirectory, assetPath, localTransform);
         }
         // Dont return anything because this node does not exist in our hierarchy
         return nullptr;
@@ -370,6 +370,8 @@ std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* 
         }
 
         auto compMesh = std::make_shared<ComponentMesh>(meshObject.get());
+        compMesh->path = assetPath;
+        compMesh->libraryPath = meshData.libraryPath;
         compMesh->LoadMesh(meshData.vertices, meshData.num_vertices,
             meshData.indices, meshData.num_indices,
             meshData.texCoords, meshData.normals);
@@ -389,7 +391,7 @@ std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* 
     for (unsigned int i = 0; i < node->mNumChildren; i++)
     {
         // As a real node is created, needs to reset the accumulation for the childrens because the local transformation will already be relative to the GameObject
-        ProcessNode(node->mChildren[i], scene, gameObject, fbxDirectory, glm::mat4(1.0f));
+        ProcessNode(node->mChildren[i], scene, gameObject, fbxDirectory, assetPath, glm::mat4(1.0f));
     }
 
     return gameObject;
@@ -397,34 +399,28 @@ std::shared_ptr<GameObject> LoadFiles::ProcessNode(aiNode* node, const aiScene* 
 
 void LoadFiles::ProcessMesh(aiMesh* aiMesh, MeshData& meshData)
 {
-    // 1. Generar el nombre del archivo en Library
+    // Generate file name in library
     std::string meshName = aiMesh->mName.C_Str();
     if (meshName.empty()) meshName = "generated_mesh_" + std::to_string(aiMesh->mNumVertices);
 
-    // IMPORTANTE: En el futuro usarás UIDs, por ahora usamos el nombre para simplificar
     std::string libraryPath = "Library/Meshes/" + meshName + ".rgs";
 
-    // -------------------------------------------------------
-    // INTENTO 1: CARGAR DESDE LIBRARY (Formato Propio)
-    // -------------------------------------------------------
-    // Comprobamos si el archivo ya existe. Si existe, cargamos ese y nos saltamos Assimp.
+    meshData.libraryPath = libraryPath;
+
+    // Check if the file exists, if exists, load the file and skip assimp
     std::ifstream checkFile(libraryPath);
     if (checkFile.good())
     {
-        checkFile.close(); // Cerramos el check
+        checkFile.close();
 
-        // Intentamos cargar
         if (LoadMeshFromCustomFormat(libraryPath.c_str(), meshData))
         {
             LOG("Resources: Loaded mesh from Library (FAST): %s", libraryPath.c_str());
-            return; // ¡ÉXITO! Ya tenemos los datos, salimos de la función.
+            return;
         }
     }
 
-    // -------------------------------------------------------
-    // INTENTO 2: IMPORTAR DESDE ASSIMP (Lento)
-    // -------------------------------------------------------
-    // Si llegamos aquí es porque no existía en Library. Toca hacerlo a la antigua.
+    // If not, the file didnt exist on Library, so slow version with assimp
     LOG("Resources: Importing mesh from FBX (SLOW)...");
 
     meshData.num_vertices = aiMesh->mNumVertices;
@@ -441,7 +437,7 @@ void LoadFiles::ProcessMesh(aiMesh* aiMesh, MeshData& meshData)
         }
     }
 
-    // Normales
+    // Normals
     if (aiMesh->HasNormals())
     {
         meshData.hasNormals = true;
@@ -461,14 +457,11 @@ void LoadFiles::ProcessMesh(aiMesh* aiMesh, MeshData& meshData)
         }
     }
 
-    // -------------------------------------------------------
-    // GUARDAR EN LIBRARY PARA LA PRÓXIMA
-    // -------------------------------------------------------
     SaveMeshToCustomFormat(libraryPath.c_str(), meshData);
     LOG("Resources: Saved mesh to Library: %s", libraryPath.c_str());
 }
 
-std::shared_ptr<GameObject> LoadFiles::CreateGameObjectFromMesh(const MeshData& meshData, const char* name)
+std::shared_ptr<GameObject> LoadFiles::CreateGameObjectFromMesh(const MeshData& meshData, const char* name, const char* assetPath)
 {
     auto gameObject = std::make_shared<GameObject>(name);
 
@@ -476,6 +469,8 @@ std::shared_ptr<GameObject> LoadFiles::CreateGameObjectFromMesh(const MeshData& 
     gameObject->AddComponent(transform);
 
     auto compMesh = std::make_shared<ComponentMesh>(gameObject.get());
+    compMesh->path = assetPath;
+    compMesh->libraryPath = meshData.libraryPath;
     compMesh->LoadMesh(meshData.vertices, meshData.num_vertices,
         meshData.indices, meshData.num_indices,
         meshData.texCoords, meshData.normals);
@@ -798,6 +793,9 @@ bool LoadFiles::LoadMeshFromFile(const char* file_path, GameObject* target)
     MeshData meshData;
     // Reuse your ProcessMesh function
     ProcessMesh(aiMesh, meshData);
+
+    currentMesh->path = file_path;
+    currentMesh->libraryPath = meshData.libraryPath;
 
     // Load the data into the existing component, clearing the previous one
     currentMesh->LoadMesh(meshData.vertices, meshData.num_vertices,

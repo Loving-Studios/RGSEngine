@@ -695,6 +695,23 @@ void ModuleEditor::DrawInspectorWindow()
             ComponentMesh* mesh = static_cast<ComponentMesh*>(component.get());
             if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_DefaultOpen))
             {
+                if (!mesh->path.empty())
+                    ImGui::Text("Path: %s", mesh->path.c_str());
+
+                if (!mesh->libraryPath.empty())
+                {
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+                    ImGui::Text("Internal: %s", mesh->libraryPath.c_str());
+                    ImGui::PopStyleColor();
+                }
+                else
+                {
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+                    ImGui::Text("Internal: Generated / Primitive");
+                    ImGui::PopStyleColor();
+                }
+                ImGui::Separator();
+
                 // Mesh info
                 ImGui::Text("Index Count: %d", mesh->indexCount);
                 ImGui::Text("VAO: %d, VBO: %d, IBO: %d", mesh->VAO, mesh->VBO, mesh->IBO);
