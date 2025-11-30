@@ -46,6 +46,12 @@ bool LoadFiles::Awake()
     if (!std::filesystem::exists("Library/Textures"))
         std::filesystem::create_directory("Library/Textures");
 
+    if (!std::filesystem::exists("Assets"))
+        std::filesystem::create_directory("Assets");
+
+    if (!std::filesystem::exists("Assets/Scenes"))
+        std::filesystem::create_directory("Assets/Scenes");
+
     // Inicializar DevIL
     ilInit();
     iluInit();
