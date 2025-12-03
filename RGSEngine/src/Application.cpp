@@ -8,6 +8,7 @@
 #include "LoadFiles.h"
 #include "ModuleScene.h"
 #include "ModuleEditor.h"
+#include "Time.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -75,6 +76,8 @@ bool Application::Awake() {
 bool Application::Start() {
     LOG("Application::Start");
 
+    Time::Init();
+
     //Iterates the module list and calls Start on each module
     bool result = true;
     for (const auto& module : moduleList) {
@@ -128,12 +131,7 @@ bool Application::CleanUp() {
 // ---------------------------------------------
 void Application::PrepareUpdate()
 {
-    uint64_t currentTime = SDL_GetTicks();
-    if (lastFrameTime == 0)
-        lastFrameTime = currentTime;
-
-    dt = (currentTime - lastFrameTime) / 1000.0f;
-    lastFrameTime = currentTime;
+    Time::Update();
 }
 
 // ---------------------------------------------
@@ -163,12 +161,12 @@ bool Application::DoUpdate()
     //Iterates the module list and calls Update on each module
     bool result = true;
     for (const auto& module : moduleList) {
-        result = module->Update(dt);
+   
+        result = module->Update(Time::deltaTime);
         if (!result) {
             break;
         }
     }
-
     return result;
 }
 

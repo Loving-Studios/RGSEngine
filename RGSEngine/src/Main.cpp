@@ -29,18 +29,18 @@ int main(int argc, char* argv[]) {
 		fs::current_path(cwd.parent_path());
 		LOG("Working Directory corrected to: %s", fs::current_path().string().c_str());
 	}
-	else if (!fs::exists("Assets"))
+
+	for (int i = 1; i < argc; i++)
 	{
-		if (fs::exists(cwd.parent_path() / "Assets"))
+		if (strcmp(argv[i], "--game") == 0 || strcmp(argv[i], "-g") == 0)
 		{
-			fs::current_path(cwd.parent_path());
-			LOG("Working Directory corrected to: %s", fs::current_path().string().c_str());
+			Application::GetInstance().isGameMode = true;
+			LOG("Starting in GAME MODE (no editor)");
 		}
 	}
 
 	LOG("Application starting ...");
 
-	//Initializes the engine state
 	Application::EngineState state = Application::EngineState::CREATE;
 	int result = EXIT_FAILURE;
 

@@ -1,4 +1,4 @@
-#include <SDL3/SDL.h>
+﻿#include <SDL3/SDL.h>
 #include <SDL3/SDL_version.h>
 #include <glad/glad.h>
 
@@ -25,6 +25,7 @@
 #include "ComponentCamera.h"
 #include "ImGuizmo.h"
 #include "LoadFiles.h"
+#include "Time.h"
 
 #include <IL/il.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -99,6 +100,12 @@ std::string OpenFileDialog(const char* filter)
 
 bool ModuleEditor::Start()
 {
+    if (Application::GetInstance().isGameMode)
+    {
+        LOG("Skipping ModuleEditor (Game Mode)");
+        return true;
+    }
+
     LOG("ModuleEditor Start");
 
     // Redirect std::cerr to our stringstream
@@ -297,6 +304,9 @@ bool ModuleEditor::Update(float dt)
         ImGui::SetWindowFocus("Inspector");
     }
 
+    if (showTimeDebugWindow)
+        DrawTimeDebugWindow();
+
     // Close the container window
     ImGui::End();
 
@@ -362,6 +372,7 @@ void ModuleEditor::DrawMainMenuBar()
             ImGui::MenuItem("Inspector", NULL, &showInspectorWindow);
             ImGui::MenuItem("Configuration", NULL, &showConfigurationWindow);
             ImGui::MenuItem("Console", NULL, &showConsoleWindow);
+            ImGui::MenuItem("Time Debug", NULL, &showTimeDebugWindow);
 
             ImGui::Separator();
 
@@ -422,7 +433,92 @@ void ModuleEditor::DrawMainMenuBar()
             ImGui::EndMenu();
         }
 
-        ImGui::EndMenuBar();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ModuleScene* scene = Application::GetInstance().scene.get();
+        ModuleScene::SimulationState state = scene->GetSimulationState();
+
+        // Play/Pause/Stop buttons
+        ImVec4 playColor = (state == ModuleScene::SimulationState::PLAYING)
+            ? ImVec4(0.2f, 0.8f, 0.2f, 1.0f)
+            : ImVec4(0.4f, 0.4f, 0.4f, 1.0f);
+
+        ImVec4 pauseColor = (state == ModuleScene::SimulationState::PAUSED)
+            ? ImVec4(0.9f, 0.7f, 0.2f, 1.0f)
+            : ImVec4(0.4f, 0.4f, 0.4f, 1.0f);
+
+        ImVec4 stopColor = (state == ModuleScene::SimulationState::STOPPED)
+            ? ImVec4(0.8f, 0.2f, 0.2f, 1.0f)
+            : ImVec4(0.4f, 0.4f, 0.4f, 1.0f);
+
+        ImGui::PushStyleColor(ImGuiCol_Button, playColor);
+        if (ImGui::Button("Play"))
+        {
+            scene->Play();
+        }
+        ImGui::PopStyleColor();
+
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Start simulation (saves current state)");
+        }
+
+        ImGui::SameLine();
+
+        ImGui::BeginDisabled(state != ModuleScene::SimulationState::PLAYING);
+        ImGui::PushStyleColor(ImGuiCol_Button, pauseColor);
+        if (ImGui::Button("Pause"))
+        {
+            scene->Pause();
+        }
+        ImGui::PopStyleColor();
+        ImGui::EndDisabled();
+
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Pause simulation");
+        }
+
+        ImGui::SameLine();
+
+        ImGui::BeginDisabled(state == ModuleScene::SimulationState::STOPPED);
+        ImGui::PushStyleColor(ImGuiCol_Button, stopColor);
+        if (ImGui::Button("Stop"))
+        {
+            scene->Stop();
+        }
+        ImGui::PopStyleColor();
+        ImGui::EndDisabled();
+
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Stop simulation and restore original state");
+        }
+
+        ImGui::SameLine();
+        ImGui::Spacing();
+        ImGui::Separator();
+
+        // Show current state
+        const char* stateText = "STOPPED";
+        ImVec4 stateColor = ImVec4(0.8f, 0.2f, 0.2f, 1.0f);
+
+        if (state == ModuleScene::SimulationState::PLAYING)
+        {
+            stateText = "PLAYING";
+            stateColor = ImVec4(0.2f, 0.8f, 0.2f, 1.0f);
+        }
+        else if (state == ModuleScene::SimulationState::PAUSED)
+        {
+            stateText = "PAUSED";
+            stateColor = ImVec4(0.9f, 0.7f, 0.2f, 1.0f);
+        }
+
+        ImGui::SameLine();
+        ImGui::TextColored(stateColor, "%s", stateText);
+
+        ImGui::EndMenuBar(); 
     }
 }
 
@@ -501,6 +597,7 @@ void ModuleEditor::DrawHierarchyWindow()
         }
         ImGui::EndDragDropTarget();
     }
+
 
     ImGui::End();
 }
@@ -653,6 +750,20 @@ void ModuleEditor::DrawInspectorWindow()
         return;
     }
 
+    ModuleScene* scene = Application::GetInstance().scene.get();
+    bool isPlaying = scene->IsPlaying() || scene->IsPaused();
+
+    if (isPlaying)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.9f, 0.7f, 0.2f, 1.0f));
+        ImGui::Text("WARNING: Editing disabled during simulation");
+        ImGui::PopStyleColor();
+        ImGui::Separator();
+    }
+
+   
+    ImGui::BeginDisabled(isPlaying);
+
     // --- If there is something selected ---
 
     // Show the name
@@ -668,24 +779,22 @@ void ModuleEditor::DrawInspectorWindow()
         {
         case ComponentType::TRANSFORM:
         {
-            // Cast to access all of the data
             ComponentTransform* transform = static_cast<ComponentTransform*>(component.get());
-            if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) // Open by default
+            if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
             {
-                // Use of DragFloat3 to have best control
                 if (ImGui::DragFloat3("Position", (float*)&transform->position, 0.1f))
-                {}
-                // Convert the quaternion into Euler Angles in degrees for the UI
-                glm::vec3 eulerAngles = glm::degrees(glm::eulerAngles(transform->rotation));
+                {
+                }
 
-                // Show the DragFloat3 for the degrees
+                glm::vec3 eulerAngles = glm::degrees(glm::eulerAngles(transform->rotation));
                 if (ImGui::DragFloat3("Rotation", (float*)&eulerAngles, 1.0f))
                 {
-                    // If the user changes it, convert back to quaternion with glm::radians that converts degrees to radians
                     transform->SetRotation(glm::quat(glm::radians(eulerAngles)));
                 }
+
                 if (ImGui::DragFloat3("Scale", (float*)&transform->scale, 0.1f))
-                {}
+                {
+                }
             }
             break;
         }
@@ -712,15 +821,12 @@ void ModuleEditor::DrawInspectorWindow()
                 }
                 ImGui::Separator();
 
-                // Mesh info
                 ImGui::Text("Index Count: %d", mesh->indexCount);
                 ImGui::Text("VAO: %d, VBO: %d, IBO: %d", mesh->VAO, mesh->VBO, mesh->IBO);
 
-                // Button to select the mesh
                 ImGui::Separator();
                 if (ImGui::Button("Select Mesh..."))
                 {
-                    // Filter for FBX files
                     std::string path = OpenFileDialog("FBX Files\0*.fbx\0All Files\0*.*\0");
                     if (!path.empty())
                     {
@@ -730,10 +836,8 @@ void ModuleEditor::DrawInspectorWindow()
 
                 ImGui::Separator();
 
-                // Only show the mesh if it has normals (check the normals VAO)
                 if (mesh->normalsVAO != 0)
                 {
-                    // Enter the public variable of ModuleRender
                     ImGui::Checkbox("Show Vertex Normals", &Application::GetInstance().render->drawVertexNormals);
                 }
                 if (mesh->faceNormalsVAO != 0)
@@ -755,37 +859,28 @@ void ModuleEditor::DrawInspectorWindow()
                     texture->useDefaultTexture = useDefault;
                     if (useDefault)
                     {
-                        // Force save the original texture
                         if (texture->originalTextureID == 0)
                         {
                             texture->originalTextureID = texture->textureID;
                             texture->originalPath = texture->path;
                         }
 
-                        // Obtain the texture default of ModuleRender
                         unsigned int defaultTexID = Application::GetInstance().render->defaultCheckerTexture;
-
-                        // Assign the default texture
                         texture->textureID = defaultTexID;
                         texture->path = "default_checker";
-                        // Don't change the width and height so it's the original size
                     }
                     else
                     {
-                        // Restore original texture
                         if (texture->originalTextureID != 0)
                         {
                             texture->textureID = texture->originalTextureID;
                             texture->path = texture->originalPath;
-
-                            // Clean all the savings
                             texture->originalTextureID = 0;
                             texture->originalPath = "";
                         }
                     }
                 }
 
-                // Texture info
                 ImGui::Text("Path: %s", texture->path.c_str());
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
                 ImGui::Text("Internal: %s", texture->libraryPath.c_str());
@@ -794,34 +889,30 @@ void ModuleEditor::DrawInspectorWindow()
                 ImGui::Text("Texture ID: %d", texture->textureID);
 
                 ImGui::SameLine();
-                // Button to select the texture
                 if (ImGui::Button("Select Texture..."))
                 {
-                    // Filter for images
                     std::string path = OpenFileDialog("Image Files\0*.png;*.jpg;*.dds;*.jpeg\0All Files\0*.*\0");
                     if (!path.empty())
                     {
                         Application::GetInstance().loadFiles->LoadTexture(path.c_str(), selectedGameObject);
                     }
                 }
+
                 ImGui::Separator();
                 ImGui::Text("Transparency Settings");
 
-                // ALPHA TEST
                 ImGui::Checkbox("Enable Alpha Test", &texture->enableAlphaTest);
                 if (texture->enableAlphaTest)
                 {
                     ImGui::SliderFloat("Alpha Threshold", &texture->alphaThreshold, 0.0f, 1.0f);
                 }
 
-                // BLENDING
                 ImGui::Checkbox("Enable Blending", &texture->enableBlending);
                 if (texture->enableBlending)
                 {
-                    // Selectors for mixing factors
                     const char* items[] = { "GL_SRC_ALPHA", "GL_ONE", "GL_ZERO", "GL_ONE_MINUS_SRC_ALPHA" };
-                    static int currentSrc = 0; // GL_SRC_ALPHA by default
-                    static int currentDst = 3; // GL_ONE_MINUS_SRC_ALPHA by default
+                    static int currentSrc = 0;
+                    static int currentDst = 3;
 
                     if (ImGui::Combo("Source Factor", &currentSrc, items, IM_ARRAYSIZE(items))) {
                         if (currentSrc == 0) texture->blendSrc = GL_SRC_ALPHA;
@@ -842,7 +933,6 @@ void ModuleEditor::DrawInspectorWindow()
                 if (ImGui::Button("Apply Window Texture (Blending)"))
                 {
                     Application::GetInstance().loadFiles->LoadTexture("Assets/Transparency/blending_transparent_window.png", selectedGameObject);
-                    // Automatically configure for the window glass
                     texture->enableBlending = true;
                     texture->blendSrc = GL_SRC_ALPHA;
                     texture->blendDst = GL_ONE_MINUS_SRC_ALPHA;
@@ -852,7 +942,6 @@ void ModuleEditor::DrawInspectorWindow()
                 if (ImGui::Button("Apply Grass Texture (Alpha Test)"))
                 {
                     Application::GetInstance().loadFiles->LoadTexture("Assets/Transparency/grass.png", selectedGameObject);
-                    // Automatically configure for grass image
                     texture->enableAlphaTest = true;
                     texture->alphaThreshold = 0.1f;
                     texture->enableBlending = false;
@@ -860,10 +949,10 @@ void ModuleEditor::DrawInspectorWindow()
             }
             break;
         }
+
         case ComponentType::CAMERA:
         {
             ComponentCamera* camera = static_cast<ComponentCamera*>(component.get());
-
             if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 ImGui::Checkbox("Active", &camera->active);
@@ -890,6 +979,7 @@ void ModuleEditor::DrawInspectorWindow()
         }
     }
 
+    ImGui::EndDisabled(); 
     ImGui::End();
 }
 
@@ -1171,4 +1261,72 @@ void ModuleEditor::UpdateMemoryStats()
         // pmc.WorkingSetSize is the usage of physic RAM in bytes
         ram_usage_mb = (int)(pmc.WorkingSetSize / (1024 * 1024)); // Convert to MB
     }
+}
+
+
+
+
+void ModuleEditor::DrawTimeDebugWindow()
+{
+    if (!ImGui::Begin("Time Debug", &showTimeDebugWindow))
+    {
+        ImGui::End();
+        return;
+    }
+
+    ImGui::Text("GAME CLOCK");
+    ImGui::Text("Time: %.3f s", Time::time);
+    ImGui::Text("Delta Time: %.4f s (%.1f FPS)", Time::deltaTime, 1.0f / Time::deltaTime);
+    ImGui::Text("Time Scale: %.2fx", Time::timeScale);
+    ImGui::Text("Frame Count: %llu", Time::frameCount);
+
+    ImGui::Separator();
+    ImGui::Text("REAL TIME CLOCK");
+    ImGui::Text("Real Time: %.3f s", Time::realTimeSinceStartup);
+    ImGui::Text("Real Delta Time: %.4f s (%.1f FPS)",
+        Time::realDeltaTime, 1.0f / Time::realDeltaTime);
+
+    ImGui::Separator();
+    ImGui::Text("SIMULATION STATE");
+    ModuleScene* scene = Application::GetInstance().scene.get();
+    const char* stateText = "STOPPED";
+    if (scene->IsPlaying()) stateText = "PLAYING";
+    else if (scene->IsPaused()) stateText = "PAUSED";
+    ImGui::Text("State: %s", stateText);
+    ImGui::Text("Is Paused: %s", Time::isPaused ? "YES" : "NO");
+
+    ImGui::Separator();
+    ImGui::Text("CONTROLS");
+
+    float newTimeScale = Time::timeScale;
+    if (ImGui::SliderFloat("Time Scale", &newTimeScale, 0.01f, 5.0f))
+    {
+        Time::SetTimeScale(newTimeScale);
+    }
+
+    if (ImGui::Button("Reset Time Scale"))
+    {
+        Time::SetTimeScale(1.0f);
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("0.5x")) Time::SetTimeScale(0.5f);
+    ImGui::SameLine();
+    if (ImGui::Button("2x")) Time::SetTimeScale(2.0f);
+
+    ImGui::Separator();
+
+    ImGui::BeginDisabled(!scene->IsPaused());
+    if (ImGui::Button("Step 1 Frame"))
+    {
+        Time::Step();
+    }
+    ImGui::EndDisabled();
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("Advance 1 frame while paused");
+    }
+
+    ImGui::End();
 }

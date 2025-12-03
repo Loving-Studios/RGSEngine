@@ -2,6 +2,8 @@
 #include "Application.h"
 #include "Log.h"
 #include "LoadFiles.h"
+#include "SceneState.h" 
+#include "Time.h"
 
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
@@ -44,6 +46,7 @@ static void CreateDefaultCheckerTexture(std::shared_ptr<ComponentTexture> textur
 ModuleScene::ModuleScene() : Module()
 {
     name = "scene";
+    simulationState = SimulationState::STOPPED;
 }
 
 ModuleScene::~ModuleScene()
@@ -77,6 +80,11 @@ bool ModuleScene::Start()
 
     std::shared_ptr<GameObject> streetEnv = Application::GetInstance().loadFiles->LoadFBX(streetPath.c_str());
 
+    if (Application::GetInstance().isGameMode)
+    {
+        Play();
+        LOG("Auto-starting simulation (Game Mode)");
+    }
     if (streetEnv) {
         AddGameObject(streetEnv);
     }
@@ -98,8 +106,9 @@ bool ModuleScene::Start()
 bool ModuleScene::Update(float dt)
 {
     // Update the rootObject wich will be updating all his childrens and components
-    if (rootObject)
+    if (rootObject && (simulationState == SimulationState::PLAYING || simulationState == SimulationState::PAUSED))
     {
+        
         rootObject->Update();
     }
     return true;
@@ -445,4 +454,51 @@ void ModuleScene::CreateEmptyGameObject()
 
     // Add GameObject to the root of the scene
     AddGameObject(go);
+}
+
+
+
+void ModuleScene::Play()
+{
+    if (simulationState == SimulationState::PLAYING) return;
+
+    if (simulationState == SimulationState::STOPPED)
+    {
+        if (savedState.IsEmpty()) 
+        {
+            LOG("PLAY - Capturing scene state");
+            savedState.Capture(rootObject.get());
+        }
+        Time::Reset();
+    }
+
+    simulationState = SimulationState::PLAYING;
+    Time::Resume(); 
+    LOG("Simulation STARTED");
+}
+
+void ModuleScene::Pause()
+{
+    if (simulationState != SimulationState::PLAYING) return;
+
+    simulationState = SimulationState::PAUSED;
+    Time::Pause(); 
+    LOG("Simulation PAUSED");
+}
+
+void ModuleScene::Stop()
+{
+    if (simulationState == SimulationState::STOPPED) return;
+
+    LOG("STOP - Restoring scene state");
+
+    if (!savedState.IsEmpty())
+    {
+        savedState.Restore(rootObject.get());
+        savedState.Clear();
+    }
+
+    Time::Reset(); 
+    simulationState = SimulationState::STOPPED;
+    LOG("Simulation STOPPED");
 }

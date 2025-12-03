@@ -51,6 +51,10 @@ private:
     bool showConfigurationWindow = true;
     bool showAboutWindow = false;
 
+
+    bool showTimeDebugWindow = false;
+    void DrawTimeDebugWindow();
+
     // Buffer for the console
     std::streambuf* oldCerrStreamBuf;
     std::stringstream consoleStream;
