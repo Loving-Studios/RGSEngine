@@ -488,17 +488,25 @@ void ModuleScene::Pause()
 
 void ModuleScene::Stop()
 {
-    if (simulationState == SimulationState::STOPPED) return;
-
-    LOG("STOP - Restoring scene state");
-
-    if (!savedState.IsEmpty())
+    if (simulationState == SimulationState::STOPPED)
     {
-        savedState.Restore(rootObject.get());
-        savedState.Clear();
+        LOG("WARNING: Already stopped");
+        return;
     }
 
-    Time::Reset(); 
+    if (savedState.IsEmpty())
+    {
+        LOG("ERROR: No saved state to restore! This shouldn't happen.");
+        simulationState = SimulationState::STOPPED;
+        Time::Reset();
+        return;
+    }
+
+    LOG("STOP - Restoring scene state");
+    savedState.Restore(rootObject.get());
+    savedState.Clear();
+
+    Time::Reset();
     simulationState = SimulationState::STOPPED;
-    LOG("Simulation STOPPED");
+    LOG("Simulation STOPPED and state restored");
 }

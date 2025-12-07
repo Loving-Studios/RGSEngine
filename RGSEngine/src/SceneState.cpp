@@ -93,10 +93,8 @@ void SceneState::CleanupCreatedObjects(GameObject* go)
         initialized = true;
     }
 
-   
     auto& children = go->children;
 
-   
     for (auto it = children.begin(); it != children.end(); )
     {
         if (!(*it))
@@ -117,36 +115,16 @@ void SceneState::CleanupCreatedObjects(GameObject* go)
 
         if (!wasInOriginalState)
         {
-            // Created during Play
             LOG("Removing created object: %s (UID: %llu)",
                 (*it)->GetName().c_str(), (*it)->uid);
-
-           
             CleanupCreatedObjects((*it).get());
-
-          
             it = children.erase(it);
         }
         else
         {
-           
             CleanupCreatedObjects((*it).get());
             ++it;
         }
-    }
-
-    // Reset when finished
-    static bool isRoot = true;
-    if (isRoot)
-    {
-        isRoot = false;
-    }
-    else if (go->parent == nullptr)
-    {
-        
-        originalUIDs.clear();
-        initialized = false;
-        isRoot = true;
     }
 }
 
