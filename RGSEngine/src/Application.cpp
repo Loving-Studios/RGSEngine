@@ -9,6 +9,7 @@
 #include "ModuleScene.h"
 #include "ModuleEditor.h"
 #include "Time.h"
+#include "ResourceManager.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -20,6 +21,11 @@
 Application::Application() {
 
     LOG("Constructor Application::Application");
+
+    if (!ResourceManager::GetInstance().Initialize())
+    {
+        LOG("ERROR: Failed to initialize ResourceManager");
+    }
 
     // Modules
     window = std::make_shared<Window>();
@@ -59,6 +65,8 @@ bool Application::Awake() {
     LOG("Application::Awake");
 
     std::cout << "DIRECTORIO ACTUAL: " << std::filesystem::current_path() << std::endl;
+
+    ResourceManager::GetInstance().RegenerateLibrary();
 
     //Iterates the module list and calls Awake on each module
     bool result = true;
@@ -116,6 +124,8 @@ bool Application::Update() {
 bool Application::CleanUp() {
     LOG("Application::CleanUp");
 
+    ResourceManager::GetInstance().PrintResourceStats();
+
     //Iterates the module list and calls CleanUp on each module
     bool result = true;
     for (const auto& module : moduleList) {
@@ -161,7 +171,7 @@ bool Application::DoUpdate()
     //Iterates the module list and calls Update on each module
     bool result = true;
     for (const auto& module : moduleList) {
-   
+
         result = module->Update(Time::deltaTime);
         if (!result) {
             break;

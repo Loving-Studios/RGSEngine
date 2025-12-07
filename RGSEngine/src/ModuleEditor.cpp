@@ -141,6 +141,9 @@ bool ModuleEditor::Start()
         isNVIDIA = true;
     }
 
+    assetWindow = std::make_unique<AssetWindow>();
+    resourceStatsWindow = std::make_unique<ResourceStatsWindow>();
+
     return true;
 }
 
@@ -296,6 +299,12 @@ bool ModuleEditor::Update(float dt)
     if (showConfigurationWindow)
         DrawConfigurationWindow();
 
+    if (showAssetWindow && assetWindow)
+        assetWindow->Draw(&showAssetWindow);
+
+    if (showResourceStatsWindow && resourceStatsWindow)
+        resourceStatsWindow->Draw(&showResourceStatsWindow);
+
     if (showAboutWindow)
         DrawAboutWindow();
 
@@ -337,6 +346,10 @@ bool ModuleEditor::CleanUp()
 {
     LOG("ModuleEditor CleanUp");
 
+   
+    assetWindow.reset();
+    resourceStatsWindow.reset();
+
     // Restart the original buffer of std::cerr
     std::cerr.rdbuf(oldCerrStreamBuf);
     // Clean ImGui
@@ -375,6 +388,10 @@ void ModuleEditor::DrawMainMenuBar()
             ImGui::MenuItem("Time Debug", NULL, &showTimeDebugWindow);
 
             ImGui::Separator();
+
+            ImGui::MenuItem("Assets", NULL, &showAssetWindow);
+            ImGui::MenuItem("Resource Statistics", NULL, &showResourceStatsWindow);
+
 
             if (ImGui::MenuItem("Reset Layout"))
             {
@@ -518,7 +535,7 @@ void ModuleEditor::DrawMainMenuBar()
         ImGui::SameLine();
         ImGui::TextColored(stateColor, "%s", stateText);
 
-        ImGui::EndMenuBar(); 
+        ImGui::EndMenuBar();
     }
 }
 
@@ -761,7 +778,7 @@ void ModuleEditor::DrawInspectorWindow()
         ImGui::Separator();
     }
 
-   
+
     ImGui::BeginDisabled(isPlaying);
 
     // --- If there is something selected ---
@@ -979,7 +996,7 @@ void ModuleEditor::DrawInspectorWindow()
         }
     }
 
-    ImGui::EndDisabled(); 
+    ImGui::EndDisabled();
     ImGui::End();
 }
 
@@ -1007,13 +1024,17 @@ void ModuleEditor::ApplyDefaultDockingLayout()
     // Main divided, the new centre, so we can put the Console at the Bottom of the screen
     ImGuiID dock_bottom_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.20f, nullptr, &dock_main_id);
 
+
+    ImGuiID dock_right_lower = ImGui::DockBuilderSplitNode(dock_right_id, ImGuiDir_Down, 0.5f, nullptr, &dock_right_id);
     // The space left after all the divisions on dock_main_id it's the Viewport 3D, the passthrough
 
     // Apply the Dock of our windows to the id's created
     ImGui::DockBuilderDockWindow("Hierarchy", dock_left_id);
+    ImGui::DockBuilderDockWindow("Assets", dock_left_id);
     ImGui::DockBuilderDockWindow("Inspector", dock_right_id);
     ImGui::DockBuilderDockWindow("Configuration", dock_right_id); // Same Tab as the Inspector
     ImGui::DockBuilderDockWindow("Console", dock_bottom_id);
+    ImGui::DockBuilderDockWindow("Resource Statistics", dock_right_lower);
     ImGui::DockBuilderDockWindow("Dear ImGui Demo", dock_main_id); // Centered just in case
 
     ImGui::SetWindowFocus("Inspector");

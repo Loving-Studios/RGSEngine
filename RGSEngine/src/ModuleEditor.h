@@ -6,6 +6,8 @@
 #include <sstream>
 #include <vector>
 #include "ImGuizmo.h"
+#include "AssetWindow.h"
+#include "ResourceStatsWindow.h"
 
 class GameObject;
 
@@ -69,4 +71,12 @@ private:
     int vram_budget_mb = 0;    // VRAM Total
     int vram_available_mb = 0; // VRAM Available
     int ram_usage_mb = 0;      // RAM used on the process
+
+
+    //Windows assets
+    std::unique_ptr<AssetWindow> assetWindow;
+    std::unique_ptr<ResourceStatsWindow> resourceStatsWindow;
+
+    bool showAssetWindow = true;
+    bool showResourceStatsWindow = false;
 };

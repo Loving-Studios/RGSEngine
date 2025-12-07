@@ -3,6 +3,7 @@
 #include "Window.h"
 #include "Log.h"
 #include "LoadFiles.h"
+#include "ResourceManager.h" 
 #include "imgui_impl_sdl3.h"
 
 #define MAX_KEYS 300
@@ -141,9 +142,14 @@ bool Input::PreUpdate()
 			const char* dropped_filedir = event.drop.data;
 			LOG("File dropped on window: %s", dropped_filedir);
 
-			// Pass the file to the LoadFiles module for processing
-			Application::GetInstance().loadFiles->HandleDropFile(dropped_filedir);
-
+			if (ResourceManager::GetInstance().ImportAsset(dropped_filedir))
+			{
+				LOG("Asset imported successfully: %s", dropped_filedir);
+			}
+			else
+			{
+				LOG("ERROR: Failed to import asset: %s", dropped_filedir);
+			}
 		}
 		break;
 
