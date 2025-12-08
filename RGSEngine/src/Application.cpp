@@ -19,13 +19,8 @@
 
 // Constructor
 Application::Application() {
-
     LOG("Constructor Application::Application");
 
-    if (!ResourceManager::GetInstance().Initialize())
-    {
-        LOG("ERROR: Failed to initialize ResourceManager");
-    }
 
     // Modules
     window = std::make_shared<Window>();
@@ -39,18 +34,14 @@ Application::Application() {
     // Reverse order of CleanUp
     AddModule(std::static_pointer_cast<Module>(window));
     AddModule(std::static_pointer_cast<Module>(input));
+    AddModule(std::static_pointer_cast<Module>(loadFiles));
     AddModule(std::static_pointer_cast<Module>(scene));
     AddModule(std::static_pointer_cast<Module>(editor));
     AddModule(std::static_pointer_cast<Module>(render));
-    AddModule(std::static_pointer_cast<Module>(loadFiles));
-
-    // Render last 
-
 }
 
-// Static method to get the instance of the Application class, following the singletn pattern
 Application& Application::GetInstance() {
-    static Application instance; // Guaranteed to be destroyed and instantiated on first use
+    static Application instance;
     return instance;
 }
 
@@ -61,14 +52,16 @@ void Application::AddModule(std::shared_ptr<Module> module) {
 
 // Called before render is available
 bool Application::Awake() {
-
     LOG("Application::Awake");
 
-    std::cout << "DIRECTORIO ACTUAL: " << std::filesystem::current_path() << std::endl;
+    std::cout << "current directory: " << std::filesystem::current_path() << std::endl;
 
-    ResourceManager::GetInstance().RegenerateLibrary();
 
-    //Iterates the module list and calls Awake on each module
+    if (!ResourceManager::GetInstance().Initialize())
+    {
+        return false;
+    }
+
     bool result = true;
     for (const auto& module : moduleList) {
         result = module->Awake();
@@ -86,7 +79,6 @@ bool Application::Start() {
 
     Time::Init();
 
-    //Iterates the module list and calls Start on each module
     bool result = true;
     for (const auto& module : moduleList) {
         result = module->Start();
@@ -95,12 +87,23 @@ bool Application::Start() {
         }
     }
 
+    if (result)
+    {
+
+        int unprocessed = ResourceManager::GetInstance().CountUnprocessedAssets();
+
+        if (unprocessed > 0)
+        {
+
+            ResourceManager::GetInstance().ProcessUnprocessedAssets();
+        }
+    }
+
     return result;
 }
 
 // Called each loop iteration
 bool Application::Update() {
-
     bool ret = true;
     PrepareUpdate();
 
@@ -126,7 +129,6 @@ bool Application::CleanUp() {
 
     ResourceManager::GetInstance().PrintResourceStats();
 
-    //Iterates the module list and calls CleanUp on each module
     bool result = true;
     for (const auto& module : moduleList) {
         result = module->CleanUp();
@@ -147,13 +149,11 @@ void Application::PrepareUpdate()
 // ---------------------------------------------
 void Application::FinishUpdate()
 {
-
 }
 
 // Call modules before each loop iteration
 bool Application::PreUpdate()
 {
-    //Iterates the module list and calls PreUpdate on each module
     bool result = true;
     for (const auto& module : moduleList) {
         result = module->PreUpdate();
@@ -168,10 +168,8 @@ bool Application::PreUpdate()
 // Call modules on each loop iteration
 bool Application::DoUpdate()
 {
-    //Iterates the module list and calls Update on each module
     bool result = true;
     for (const auto& module : moduleList) {
-
         result = module->Update(Time::deltaTime);
         if (!result) {
             break;
@@ -183,7 +181,6 @@ bool Application::DoUpdate()
 // Call modules after each loop iteration
 bool Application::PostUpdate()
 {
-    //Iterates the module list and calls PostUpdate on each module
     bool result = true;
     for (const auto& module : moduleList) {
         result = module->PostUpdate();

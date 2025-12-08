@@ -60,6 +60,8 @@ Library
 *.db
 *.opensdf
 *.sdf
+*.meta
+
 
 # Windows generated
 Thumbs.db
