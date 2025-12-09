@@ -457,32 +457,62 @@ void ModuleScene::CreateEmptyGameObject()
 }
 
 
-
 void ModuleScene::Play()
 {
-    if (simulationState == SimulationState::PLAYING) return;
-
-    if (simulationState == SimulationState::STOPPED)
+    
+    if (simulationState == SimulationState::PLAYING)
     {
-        if (savedState.IsEmpty()) 
-        {
-            LOG("PLAY - Capturing scene state");
-            savedState.Capture(rootObject.get());
-        }
-        Time::Reset();
+        LOG("WARNING: Already playing");
+        return;
     }
 
+    // If resuming from pause
+    if (simulationState == SimulationState::PAUSED)
+    {
+        LOG("PLAY - Resuming from pause");
+        Time::Resume();
+        simulationState = SimulationState::PLAYING;
+        return;
+    }
+
+    // If starting from stopped state
+    if (simulationState == SimulationState::STOPPED)
+    {
+       
+        // This ensures we get the latest scene state before playing
+        LOG("PLAY - Capturing current scene state");
+
+        // Clear any previous saved state
+        savedState.Clear();
+
+        // Capture the current state (before simulation starts)
+        savedState.Capture(rootObject.get());
+
+        // Reset time to zero
+        Time::Reset();
+
+        LOG("Scene state captured with %d root children",
+            (int)rootObject->GetChildren().size());
+    }
+
+    // Start the simulation
     simulationState = SimulationState::PLAYING;
-    Time::Resume(); 
+    Time::Resume();
+
     LOG("Simulation STARTED");
 }
 
 void ModuleScene::Pause()
 {
-    if (simulationState != SimulationState::PLAYING) return;
+    // Can only pause if currently playing
+    if (simulationState != SimulationState::PLAYING)
+    {
+        LOG("WARNING: Can only pause when simulation is PLAYING");
+        return;
+    }
 
     simulationState = SimulationState::PAUSED;
-    Time::Pause(); 
+    Time::Pause();
     LOG("Simulation PAUSED");
 }
 
@@ -494,6 +524,7 @@ void ModuleScene::Stop()
         return;
     }
 
+    // Must have a saved state to restore
     if (savedState.IsEmpty())
     {
         LOG("ERROR: No saved state to restore! This shouldn't happen.");
@@ -503,10 +534,49 @@ void ModuleScene::Stop()
     }
 
     LOG("STOP - Restoring scene state");
-    savedState.Restore(rootObject.get());
-    savedState.Clear();
 
-    Time::Reset();
-    simulationState = SimulationState::STOPPED;
-    LOG("Simulation STOPPED and state restored");
+    try
+    {
+        // Restore the scene to its state before Play was called
+        savedState.Restore(rootObject.get());
+
+        // Clear the saved state after restoration
+        savedState.Clear();
+
+        
+        Time::Reset();
+
+        // Update state
+        simulationState = SimulationState::STOPPED;
+
+        LOG("Simulation STOPPED and state restored");
+    }
+    catch (const std::exception& e)
+    {
+        LOG("ERROR during stop: %s", e.what());
+
+        simulationState = SimulationState::STOPPED;
+        Time::Reset();
+    }
+}
+
+
+void ModuleScene::Step()
+{
+    if (simulationState != SimulationState::PAUSED)
+    {
+
+        return;
+    }
+
+    // Advance simulation by one frame
+    Time::Step();
+
+    // Update the scene for this one frame
+    if (rootObject)
+    {
+        rootObject->Update();
+    }
+
+    LOG("Advanced one frame (Time: %.3f)", Time::time);
 }

@@ -47,7 +47,7 @@ void SceneState::CaptureGameObject(GameObject* go, uint64_t parentUID)
 
     savedStates.push_back(state);
 
-  
+    // Recursively capture children
     for (const auto& child : go->GetChildren())
     {
         CaptureGameObject(child.get(), go->uid);
@@ -56,19 +56,31 @@ void SceneState::CaptureGameObject(GameObject* go, uint64_t parentUID)
 
 void SceneState::Restore(GameObject* rootObject)
 {
-    if (!rootObject || savedStates.empty()) return;
+    if (!rootObject || savedStates.empty())
+    {
+        return;
+    }
 
     LOG(" RESTORING SCENE STATE ");
 
     try
     {
-        // Mark new objects for removal
-        CleanupCreatedObjects(rootObject);
+       
+        // This avoids the static variable problem
+        std::vector<uint64_t> originalUIDs;
+        for (const auto& state : savedStates)
+        {
+            originalUIDs.push_back(state.uid);
+        }
 
-        // Restore the state of original objects
+        LOG("Original objects in saved state: %d", (int)originalUIDs.size());
+
+        // Cleanup objects created during simulation
+        CleanupCreatedObjects(rootObject, originalUIDs);
+
+        // Restore state of original objects
         RestoreGameObject(rootObject);
 
-        LOG("Scene state restored successfully");
     }
     catch (const std::exception& e)
     {
@@ -76,33 +88,23 @@ void SceneState::Restore(GameObject* rootObject)
     }
 }
 
-void SceneState::CleanupCreatedObjects(GameObject* go)
+void SceneState::CleanupCreatedObjects(GameObject* go,
+    const std::vector<uint64_t>& originalUIDs)
 {
     if (!go) return;
 
-    // Create list of original UIDs 
-    static std::vector<uint64_t> originalUIDs;
-    static bool initialized = false;
-
-    if (!initialized)
-    {
-        for (const auto& state : savedStates)
-        {
-            originalUIDs.push_back(state.uid);
-        }
-        initialized = true;
-    }
-
     auto& children = go->children;
 
-    for (auto it = children.begin(); it != children.end(); )
+    // Iterate backwards to safely erase while iterating
+    for (auto it = children.rbegin(); it != children.rend(); )
     {
         if (!(*it))
         {
-            it = children.erase(it);
+            it = std::reverse_iterator(children.erase(std::next(it).base()));
             continue;
         }
 
+        // Check if this object existed before simulation
         bool wasInOriginalState = false;
         for (uint64_t uid : originalUIDs)
         {
@@ -115,14 +117,13 @@ void SceneState::CleanupCreatedObjects(GameObject* go)
 
         if (!wasInOriginalState)
         {
-            LOG("Removing created object: %s (UID: %llu)",
-                (*it)->GetName().c_str(), (*it)->uid);
-            CleanupCreatedObjects((*it).get());
-            it = children.erase(it);
+            // Object was created during simulation - remove it
+            it = std::reverse_iterator(children.erase(std::next(it).base()));
         }
         else
         {
-            CleanupCreatedObjects((*it).get());
+            // Object existed before - recursively cleanup its children
+            CleanupCreatedObjects((*it).get(), originalUIDs);
             ++it;
         }
     }
@@ -132,14 +133,16 @@ void SceneState::RestoreGameObject(GameObject* go)
 {
     if (!go) return;
 
-    // Find saved status by UID
+    // Find saved state by UID
     for (const auto& state : savedStates)
     {
         if (state.uid == go->uid)
         {
+            // Restore basic properties
             go->name = state.name;
             go->active = state.active;
 
+            // Restore transform
             ComponentTransform* transform = go->GetComponent<ComponentTransform>();
             if (transform)
             {
@@ -148,7 +151,7 @@ void SceneState::RestoreGameObject(GameObject* go)
                 transform->SetScale(state.scale);
             }
 
-            // Restore state of each component
+            // Restore component active states
             if (state.componentActiveStates.size() == go->components.size())
             {
                 for (size_t i = 0; i < go->components.size(); ++i)
@@ -168,7 +171,7 @@ void SceneState::RestoreGameObject(GameObject* go)
         }
     }
 
- 
+    // Recursively restore children
     for (const auto& child : go->GetChildren())
     {
         if (child)
