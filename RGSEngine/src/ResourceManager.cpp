@@ -13,8 +13,7 @@
 #include <algorithm>
 #include <sstream>
 #include <fstream>
-#include <chrono> 
-#include <glad/glad.h>  
+#include <glad/glad.h>
 
 using json = nlohmann::json;
 
@@ -26,7 +25,6 @@ ResourceManager& ResourceManager::GetInstance()
 
 ResourceManager::ResourceManager()
 {
-    // supported extensions
     supportedMeshFormats = { ".fbx", ".obj", ".gltf", ".glb" };
     supportedTextureFormats = { ".png", ".jpg", ".jpeg", ".bmp", ".tga", ".dds" };
 }
@@ -35,45 +33,28 @@ bool ResourceManager::Initialize()
 {
     LOG("ResourceManager Initialize");
 
-    // Create directory if not existing
     if (!fs::exists("Assets"))
-    {
         fs::create_directory("Assets");
 
-    }
-
     if (!fs::exists("Library"))
-    {
         fs::create_directory("Library");
 
-    }
-
     if (!fs::exists("Library/Meshes"))
-    {
         fs::create_directory("Library/Meshes");
-    }
 
     if (!fs::exists("Library/Textures"))
-    {
         fs::create_directory("Library/Textures");
-    }
 
     RefreshAssetTree();
 
     int totalAssets = (int)resources.size();
     LOG("Found %d assets in Assets/", totalAssets);
 
-    // How many need to be processed
     int unprocessed = CountUnprocessedAssets();
     int processed = totalAssets - unprocessed;
 
     LOG("Assets already in Library/: %d", processed);
     LOG("Assets needing processing: %d", unprocessed);
-
-    /* if (unprocessed > 0)
-     {
-         LOG("NOTE: Asset processing will happen after all modules are initialized");
-     }*/
 
     LOG("ResourceManager Initialized Successfully");
     return true;
@@ -81,7 +62,6 @@ bool ResourceManager::Initialize()
 
 void ResourceManager::RefreshAssetTree()
 {
-    LOG(" Refreshing Asset Tree");
 
     assetRoot = std::make_shared<AssetNode>();
     assetRoot->name = "Assets";
@@ -92,8 +72,6 @@ void ResourceManager::RefreshAssetTree()
     {
         BuildAssetTree(fs::path("Assets"), assetRoot);
     }
-
-    LOG("Asset Tree refreshed");
 }
 
 void ResourceManager::BuildAssetTree(const fs::path& directoryPath, std::shared_ptr<AssetNode> parentNode)
@@ -104,7 +82,6 @@ void ResourceManager::BuildAssetTree(const fs::path& directoryPath, std::shared_
         {
             std::string fileName = entry.path().filename().string();
 
-            // Ignore files . meta
             if (entry.path().extension().string() == ".meta")
                 continue;
 
@@ -115,12 +92,10 @@ void ResourceManager::BuildAssetTree(const fs::path& directoryPath, std::shared_
 
             if (entry.is_directory())
             {
-
                 BuildAssetTree(entry.path(), node);
             }
             else if (IsAssetFile(entry.path()))
             {
-                // It is a resource file
                 std::string resourceType = GetResourceType(entry.path());
                 std::string resourceID = GenerateResourceID(node->path);
 
@@ -132,7 +107,6 @@ void ResourceManager::BuildAssetTree(const fs::path& directoryPath, std::shared_
                 info.lastModified = fs::last_write_time(entry.path()).time_since_epoch().count();
                 info.referenceCount = 0;
 
-                // Try to load metadata
                 LoadMetaFile(node->path, info);
 
                 resources[resourceID] = info;
@@ -155,8 +129,6 @@ void ResourceManager::BuildAssetTree(const fs::path& directoryPath, std::shared_
 bool ResourceManager::IsAssetFile(const fs::path& path) const
 {
     std::string ext = path.extension().string();
-
-
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
     for (const auto& fmt : supportedMeshFormats)
@@ -184,7 +156,6 @@ std::string ResourceManager::GetResourceType(const fs::path& path) const
 
 std::string ResourceManager::GenerateResourceID(const std::string& assetPath)
 {
-
     std::hash<std::string> hasher;
     uint64_t hashValue = hasher(assetPath);
 
@@ -199,69 +170,11 @@ std::string ResourceManager::GetLibraryPath(const std::string& assetPath, const 
     std::string filename = p.stem().string();
 
     if (resourceType == "mesh")
-    {
         return "Library/Meshes/" + filename + ".rgs";
-    }
     else if (resourceType == "texture")
-    {
         return "Library/Textures/" + filename + ".rgst";
-    }
 
     return "Library/" + filename;
-}
-
-std::shared_ptr<ComponentMesh> ResourceManager::LoadMesh(const std::string& assetPath)
-{
-    LOG("Loading mesh: %s", assetPath.c_str());
-
-    auto it = assetPathToID.find(assetPath);
-    if (it == assetPathToID.end())
-    {
-        LOG("ERROR: Asset not found: %s", assetPath.c_str());
-        return nullptr;
-    }
-
-    std::string resourceID = it->second;
-    ResourceInfo& info = resources[resourceID];
-
-
-    auto mesh = std::make_shared<ComponentMesh>(nullptr);
-    mesh->path = assetPath;
-    mesh->libraryPath = info.libraryPath;
-
-
-    AcquireResourceReference(resourceID);
-
-    LOG("Mesh loaded: %s (References: %d)", assetPath.c_str(), info.referenceCount);
-
-    return mesh;
-}
-
-std::shared_ptr<ComponentTexture> ResourceManager::LoadTexture(const std::string& assetPath)
-{
-    LOG("Loading texture: %s", assetPath.c_str());
-
-    auto it = assetPathToID.find(assetPath);
-    if (it == assetPathToID.end())
-    {
-        LOG("ERROR: Asset not found: %s", assetPath.c_str());
-        return nullptr;
-    }
-
-    std::string resourceID = it->second;
-    ResourceInfo& info = resources[resourceID];
-
-    // Create a texture component
-    auto texture = std::make_shared<ComponentTexture>(nullptr);
-    texture->path = assetPath;
-    texture->libraryPath = info.libraryPath;
-
-    // Increase reference
-    AcquireResourceReference(resourceID);
-
-    LOG("Texture loaded: %s (References: %d)", assetPath.c_str(), info.referenceCount);
-
-    return texture;
 }
 
 void ResourceManager::AcquireResourceReference(const std::string& resourceID)
@@ -279,20 +192,6 @@ void ResourceManager::ReleaseResourceReference(const std::string& resourceID)
     if (it != resources.end() && it->second.referenceCount > 0)
     {
         it->second.referenceCount--;
-    }
-}
-
-void ResourceManager::UnloadResource(const std::string& resourceID)
-{
-    auto it = resources.find(resourceID);
-    if (it == resources.end()) return;
-
-    ReleaseResourceReference(resourceID);
-
-    if (it->second.referenceCount == 0)
-    {
-        LOG("Unloading unused resource: %s", resourceID.substr(0, 8).c_str());
-        loadedResources.erase(resourceID);
     }
 }
 
@@ -314,7 +213,7 @@ int ResourceManager::GetReferenceCount(const std::string& resourceID) const
 
 bool ResourceManager::DeleteAsset(const std::string& assetPath)
 {
-    LOG(" Deleting asset: %s ", assetPath.c_str());
+    LOG("Deleting asset: %s", assetPath.c_str());
 
     auto it = assetPathToID.find(assetPath);
     if (it == assetPathToID.end())
@@ -326,11 +225,10 @@ bool ResourceManager::DeleteAsset(const std::string& assetPath)
     std::string resourceID = it->second;
     ResourceInfo& info = resources[resourceID];
 
-
     if (info.referenceCount > 0)
     {
-        LOG(" Cannot delete asset with active references (%d)", info.referenceCount);
-        LOG(" This asset is currently being used by GameObjects in the scene");
+        LOG("Cannot delete asset with active references (%d)", info.referenceCount);
+        LOG("This asset is currently being used by GameObjects in the scene");
         return false;
     }
 
@@ -338,52 +236,47 @@ bool ResourceManager::DeleteAsset(const std::string& assetPath)
     {
         bool allDeleted = true;
 
-        // Delete file from assets/
         if (fs::exists(assetPath))
         {
             fs::remove(assetPath);
-            LOG(" Deleted asset file: %s", assetPath.c_str());
+            LOG("Deleted asset file: %s", assetPath.c_str());
         }
         else
         {
-            LOG(" Asset file not found: %s", assetPath.c_str());
+            LOG("Asset file not found: %s", assetPath.c_str());
             allDeleted = false;
         }
 
-        // Delete file from Library/
         if (fs::exists(info.libraryPath))
         {
             fs::remove(info.libraryPath);
-            LOG(" Deleted library file: %s", info.libraryPath.c_str());
+            LOG("Deleted library file: %s", info.libraryPath.c_str());
         }
         else
         {
-            LOG(" Library file not found: %s", info.libraryPath.c_str());
+            LOG("Library file not found: %s", info.libraryPath.c_str());
         }
 
-        // Delete .meta
         std::string metaPath = assetPath + ".meta";
         if (fs::exists(metaPath))
         {
             fs::remove(metaPath);
-            LOG(" Deleted meta file: %s", metaPath.c_str());
+            LOG("Deleted meta file: %s", metaPath.c_str());
         }
         else
         {
-            LOG(" Meta file not found: %s", metaPath.c_str());
+            LOG("Meta file not found: %s", metaPath.c_str());
         }
-
 
         resources.erase(resourceID);
         assetPathToID.erase(assetPath);
 
-        LOG(" Removed from internal registry");
+        LOG("Removed from internal registry");
 
-        // Refresh the asset tree 
         RefreshAssetTree();
-        LOG(" Asset tree refreshed");
+        LOG("Asset tree refreshed");
 
-        LOG(" Asset deleted successfully ");
+        LOG("Asset deleted successfully");
         return allDeleted;
     }
     catch (const std::exception& e)
@@ -405,14 +298,11 @@ bool ResourceManager::ImportAsset(const std::string& sourcePath)
 
     try
     {
-        // Determine destination in Assets/
         std::string filename = fs::path(sourcePath).filename().string();
         std::string destPath = "Assets/" + filename;
 
-
         fs::copy_file(sourcePath, destPath, fs::copy_options::overwrite_existing);
         LOG("Copied asset to: %s", destPath.c_str());
-
 
         RefreshAssetTree();
 
@@ -431,7 +321,6 @@ bool ResourceManager::LoadMetaFile(const std::string& assetPath, ResourceInfo& o
 
     if (!fs::exists(metaPath))
     {
-
         SaveMetaFile(assetPath, outInfo);
         return false;
     }
@@ -484,7 +373,7 @@ bool ResourceManager::SaveMetaFile(const std::string& assetPath, const ResourceI
 
 void ResourceManager::ProcessUnprocessedAssets()
 {
-    LOG(" Processing Unprocessed Assets ");
+    LOG("Processing Unprocessed Assets");
 
     auto& app = Application::GetInstance();
     if (!app.loadFiles)
@@ -499,14 +388,12 @@ void ResourceManager::ProcessUnprocessedAssets()
 
     for (auto& [resourceID, info] : resources)
     {
-        // Only process if it does not exist in Library/
         if (!fs::exists(info.libraryPath))
         {
             LOG("Processing unprocessed asset: %s", info.assetPath.c_str());
             LOG("  Type: %s", info.resourceType.c_str());
             LOG("  Library path: %s", info.libraryPath.c_str());
 
-            // Verify that the source file exist
             if (!fs::exists(info.assetPath))
             {
                 LOG("  ERROR: Source file does not exist!");
@@ -520,17 +407,12 @@ void ResourceManager::ProcessUnprocessedAssets()
 
                 if (info.resourceType == "mesh")
                 {
-
                     success = ProcessMeshAsset(info);
 
                     if (success)
-                    {
-                        LOG(" Mesh processed and saved to Library");
-                    }
+                        LOG("Mesh processed and saved to Library");
                     else
-                    {
-                        LOG(" Failed to process mesh");
-                    }
+                        LOG("Failed to process mesh");
                 }
                 else if (info.resourceType == "texture")
                 {
@@ -538,15 +420,13 @@ void ResourceManager::ProcessUnprocessedAssets()
 
                     if (textureID != 0 && fs::exists(info.libraryPath))
                     {
-                        LOG(" Texture processed and saved to Library");
+                        LOG("Texture processed and saved to Library");
                         success = true;
-
                         glDeleteTextures(1, &textureID);
-
                     }
                     else
                     {
-                        LOG(" Failed to process texture");
+                        LOG("Failed to process texture");
                     }
                 }
                 else
@@ -569,7 +449,7 @@ void ResourceManager::ProcessUnprocessedAssets()
             }
             catch (const std::exception& e)
             {
-                LOG(" Processing asset: %s", e.what());
+                LOG("Processing asset: %s", e.what());
                 failed++;
             }
         }
@@ -579,25 +459,21 @@ void ResourceManager::ProcessUnprocessedAssets()
         }
     }
 
-    LOG(" Asset Processing Complete ");
+    LOG("Asset Processing Complete");
     LOG("Processed: %d | Failed: %d | Skipped: %d", processed, failed, skipped);
 
     if (failed > 0)
-    {
-        LOG(" Some assets failed to process. ");
-    }
+        LOG("Some assets failed to process.");
 
     if (processed > 0)
     {
-        LOG(" %d new assets added to Library/", processed);
+        LOG("%d new assets added to Library/", processed);
         RefreshAssetTree();
     }
 }
 
-
 bool ResourceManager::ProcessMeshAsset(const ResourceInfo& info)
 {
-
     const aiScene* scene = aiImportFile(info.assetPath.c_str(),
         aiProcess_Triangulate |
         aiProcess_FlipUVs |
@@ -606,10 +482,7 @@ bool ResourceManager::ProcessMeshAsset(const ResourceInfo& info)
         aiProcess_CalcTangentSpace);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
-    {
-
         return false;
-    }
 
     if (scene->mNumMeshes == 0)
     {
@@ -622,44 +495,35 @@ bool ResourceManager::ProcessMeshAsset(const ResourceInfo& info)
 
     bool allSuccess = true;
 
-    // Processing all fbx meshes
     for (unsigned int i = 0; i < scene->mNumMeshes; i++)
     {
         aiMesh* aiMesh = scene->mMeshes[i];
 
-        LOG("    Processing mesh %d/%d: %s", i + 1, scene->mNumMeshes,
-            aiMesh->mName.C_Str());
+        LOG("    Processing mesh %d/%d: %s", i + 1, scene->mNumMeshes, aiMesh->mName.C_Str());
 
         MeshData meshData;
 
-        // Copy vertices
         meshData.num_vertices = aiMesh->mNumVertices;
         meshData.vertices = new float[meshData.num_vertices * 3];
-        memcpy(meshData.vertices, aiMesh->mVertices,
-            sizeof(float) * meshData.num_vertices * 3);
+        memcpy(meshData.vertices, aiMesh->mVertices, sizeof(float) * meshData.num_vertices * 3);
 
-        // Copy indexes
         if (aiMesh->HasFaces())
         {
             meshData.num_indices = aiMesh->mNumFaces * 3;
             meshData.indices = new unsigned int[meshData.num_indices];
             for (unsigned int j = 0; j < aiMesh->mNumFaces; j++)
             {
-                memcpy(&meshData.indices[j * 3], aiMesh->mFaces[j].mIndices,
-                    3 * sizeof(unsigned int));
+                memcpy(&meshData.indices[j * 3], aiMesh->mFaces[j].mIndices, 3 * sizeof(unsigned int));
             }
         }
 
-        // Copy normal
         if (aiMesh->HasNormals())
         {
             meshData.hasNormals = true;
             meshData.normals = new float[meshData.num_vertices * 3];
-            memcpy(meshData.normals, aiMesh->mNormals,
-                sizeof(float) * meshData.num_vertices * 3);
+            memcpy(meshData.normals, aiMesh->mNormals, sizeof(float) * meshData.num_vertices * 3);
         }
 
-        // Copy UVs
         if (aiMesh->HasTextureCoords(0))
         {
             meshData.hasTexCoords = true;
@@ -671,37 +535,28 @@ bool ResourceManager::ProcessMeshAsset(const ResourceInfo& info)
             }
         }
 
-
         std::string meshName = aiMesh->mName.C_Str();
         if (meshName.empty())
         {
             fs::path fbxPath(info.assetPath);
             meshName = fbxPath.stem().string();
             if (scene->mNumMeshes > 1)
-            {
                 meshName += "_mesh_" + std::to_string(i);
-            }
         }
-
 
         std::string libraryPath = "Library/Meshes/" + meshName + ".rgs";
         meshData.libraryPath = libraryPath;
 
-        // Save in format
-        bool saved = Application::GetInstance().loadFiles->SaveMeshToCustomFormat(
-            libraryPath.c_str(), meshData);
+        bool saved = Application::GetInstance().loadFiles->SaveMeshToCustomFormat(libraryPath.c_str(), meshData);
 
         if (saved)
-        {
             LOG("      Saved: %s", libraryPath.c_str());
-        }
         else
         {
             LOG("      ERROR: Failed to save %s", libraryPath.c_str());
             allSuccess = false;
         }
 
-        // Clear memory
         delete[] meshData.vertices;
         delete[] meshData.indices;
         if (meshData.texCoords) delete[] meshData.texCoords;
@@ -710,10 +565,8 @@ bool ResourceManager::ProcessMeshAsset(const ResourceInfo& info)
 
     aiReleaseImport(scene);
 
-
     if (scene->mNumMeshes > 0 && !fs::exists(info.libraryPath))
     {
-
         const aiScene* scene2 = aiImportFile(info.assetPath.c_str(),
             aiProcess_Triangulate | aiProcess_FlipUVs |
             aiProcess_GenNormals | aiProcess_JoinIdenticalVertices);
@@ -725,8 +578,7 @@ bool ResourceManager::ProcessMeshAsset(const ResourceInfo& info)
 
             meshData.num_vertices = mainMesh->mNumVertices;
             meshData.vertices = new float[meshData.num_vertices * 3];
-            memcpy(meshData.vertices, mainMesh->mVertices,
-                sizeof(float) * meshData.num_vertices * 3);
+            memcpy(meshData.vertices, mainMesh->mVertices, sizeof(float) * meshData.num_vertices * 3);
 
             if (mainMesh->HasFaces())
             {
@@ -734,8 +586,7 @@ bool ResourceManager::ProcessMeshAsset(const ResourceInfo& info)
                 meshData.indices = new unsigned int[meshData.num_indices];
                 for (unsigned int j = 0; j < mainMesh->mNumFaces; j++)
                 {
-                    memcpy(&meshData.indices[j * 3], mainMesh->mFaces[j].mIndices,
-                        3 * sizeof(unsigned int));
+                    memcpy(&meshData.indices[j * 3], mainMesh->mFaces[j].mIndices, 3 * sizeof(unsigned int));
                 }
             }
 
@@ -743,8 +594,7 @@ bool ResourceManager::ProcessMeshAsset(const ResourceInfo& info)
             {
                 meshData.hasNormals = true;
                 meshData.normals = new float[meshData.num_vertices * 3];
-                memcpy(meshData.normals, mainMesh->mNormals,
-                    sizeof(float) * meshData.num_vertices * 3);
+                memcpy(meshData.normals, mainMesh->mNormals, sizeof(float) * meshData.num_vertices * 3);
             }
 
             if (mainMesh->HasTextureCoords(0))
@@ -760,8 +610,7 @@ bool ResourceManager::ProcessMeshAsset(const ResourceInfo& info)
 
             meshData.libraryPath = info.libraryPath;
 
-            Application::GetInstance().loadFiles->SaveMeshToCustomFormat(
-                info.libraryPath.c_str(), meshData);
+            Application::GetInstance().loadFiles->SaveMeshToCustomFormat(info.libraryPath.c_str(), meshData);
 
             delete[] meshData.vertices;
             delete[] meshData.indices;
@@ -775,56 +624,15 @@ bool ResourceManager::ProcessMeshAsset(const ResourceInfo& info)
     return allSuccess;
 }
 
-void ResourceManager::CleanupUnusedLibraryFiles()
-{
-
-    std::vector<std::string> validLibraryFiles;
-    for (const auto& [id, info] : resources)
-    {
-        validLibraryFiles.push_back(info.libraryPath);
-    }
-
-    for (const auto& dir : { "Library/Meshes", "Library/Textures" })
-    {
-        if (fs::exists(dir))
-        {
-            for (const auto& entry : fs::directory_iterator(dir))
-            {
-                std::string path = entry.path().string();
-
-                bool isValid = std::find(validLibraryFiles.begin(),
-                    validLibraryFiles.end(),
-                    path) != validLibraryFiles.end();
-
-                if (!isValid && entry.is_regular_file())
-                {
-                    try
-                    {
-                        fs::remove(entry.path());
-                        LOG("Removed orphaned library file: %s", path.c_str());
-                    }
-                    catch (const std::exception& e)
-                    {
-                        LOG("Error removing file: %s", e.what());
-                    }
-                }
-            }
-        }
-    }
-}
-
 void ResourceManager::RegenerateLibrary()
 {
-
     if (fs::exists("Library/Meshes"))
         fs::remove_all("Library/Meshes");
     if (fs::exists("Library/Textures"))
         fs::remove_all("Library/Textures");
 
-
     fs::create_directory("Library/Meshes");
     fs::create_directory("Library/Textures");
-
 
     ProcessUnprocessedAssets();
 
@@ -833,7 +641,6 @@ void ResourceManager::RegenerateLibrary()
 
 void ResourceManager::PrintResourceStats() const
 {
-
     LOG("Total resources: %d", (int)resources.size());
 
     int totalReferences = 0;
@@ -858,7 +665,6 @@ void ResourceManager::PrintResourceStats() const
     }
 
     LOG("Meshes: %d, Textures: %d", meshCount, textureCount);
-
 }
 
 std::shared_ptr<GameObject> ResourceManager::LoadFBXToScene(const std::string& assetPath)
@@ -880,15 +686,14 @@ std::shared_ptr<GameObject> ResourceManager::LoadFBXToScene(const std::string& a
     if (gameObject)
     {
         AcquireResourceReference(resourceID);
-        LOG("FBX loaded to scene: %s (References: %d)",
-            assetPath.c_str(), info.referenceCount);
+        LOG("FBX loaded to scene: %s (References: %d)", assetPath.c_str(), info.referenceCount);
     }
 
     return gameObject;
 }
+
 unsigned int ResourceManager::LoadTextureToGPU(const std::string& assetPath)
 {
-
     auto it = assetPathToID.find(assetPath);
     if (it == assetPathToID.end())
     {
@@ -899,7 +704,6 @@ unsigned int ResourceManager::LoadTextureToGPU(const std::string& assetPath)
     std::string resourceID = it->second;
     ResourceInfo& info = resources[resourceID];
 
-    // Usar LoadFiles para cargar textura
     unsigned int textureID = Application::GetInstance().loadFiles->LoadTexture(assetPath.c_str());
 
     if (textureID != 0)
@@ -918,9 +722,7 @@ int ResourceManager::CountUnprocessedAssets() const
     for (const auto& [resourceID, info] : resources)
     {
         if (!fs::exists(info.libraryPath))
-        {
             count++;
-        }
     }
     return count;
 }
@@ -938,7 +740,6 @@ bool ResourceManager::ForceProcessAsset(const std::string& assetPath)
     ResourceInfo& info = resources[resourceID];
 
     LOG("Force processing asset: %s", assetPath.c_str());
-
 
     if (fs::exists(info.libraryPath))
     {
@@ -958,7 +759,6 @@ bool ResourceManager::ForceProcessAsset(const std::string& assetPath)
     {
         if (info.resourceType == "mesh")
         {
-
             success = ProcessMeshAsset(info);
         }
         else if (info.resourceType == "texture")
@@ -967,9 +767,7 @@ bool ResourceManager::ForceProcessAsset(const std::string& assetPath)
             success = (textureID != 0);
 
             if (success)
-            {
                 glDeleteTextures(1, &textureID);
-            }
         }
     }
     catch (const std::exception& e)

@@ -1,9 +1,11 @@
 #pragma once
 
 #include "imgui.h"
+#pragma once
+
+#include "imgui.h"
 #include <memory>
 #include <string>
-#include <vector>
 
 struct AssetNode;
 
@@ -19,28 +21,21 @@ public:
     void SetOpen(bool open) { isOpen = open; }
 
 private:
-    // UI
     bool isOpen = true;
 
-    // selection state
+    // Selection state
     std::shared_ptr<AssetNode> selectedNode;
     std::string selectedPath;
 
-    // Methods of UI
+    // UI Methods
     void DrawAssetTree(std::shared_ptr<AssetNode> node);
     void DrawAssetDetails();
-    void DrawContextMenu();
     void DrawDragDropTarget();
 
-    // Methods of interaction
-    bool HandleDelete();
-    bool HandleImport();
+    // Interaction Methods
     void HandleDragDrop(const std::string& filePath);
 
-
-    void HandleAssetDragDrop();
-
-    // State variables
+    // Delete confirmation
     bool showDeleteConfirm = false;
     std::string deleteConfirmPath;
 

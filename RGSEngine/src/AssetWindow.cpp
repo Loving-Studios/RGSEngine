@@ -22,7 +22,6 @@ void AssetWindow::Draw(bool* pOpen)
 
     ImGui::SetNextItemWidth(-1);
 
-
     if (ImGui::Button("Refresh Assets"))
     {
         ResourceManager::GetInstance().RefreshAssetTree();
@@ -44,7 +43,6 @@ void AssetWindow::Draw(bool* pOpen)
 
     ImGui::Separator();
 
-
     int unprocessed = ResourceManager::GetInstance().CountUnprocessedAssets();
     if (unprocessed > 0)
     {
@@ -56,7 +54,6 @@ void AssetWindow::Draw(bool* pOpen)
         if (ImGui::Button("Process Now"))
         {
             ResourceManager::GetInstance().ProcessUnprocessedAssets();
-
         }
     }
     else
@@ -68,18 +65,15 @@ void AssetWindow::Draw(bool* pOpen)
 
     ImGui::Separator();
 
-
     ImGui::Checkbox("Meshes", &filterMeshes);
     ImGui::SameLine();
     ImGui::Checkbox("Textures", &filterTextures);
 
     ImGui::Separator();
 
-
     DrawDragDropTarget();
 
     ImGui::Separator();
-
 
     if (ImGui::BeginChild("AssetTree", ImVec2(0, -100), true))
     {
@@ -93,9 +87,7 @@ void AssetWindow::Draw(bool* pOpen)
 
     ImGui::Separator();
 
-
     DrawAssetDetails();
-
 
     if (showDeleteConfirm)
     {
@@ -110,8 +102,6 @@ void AssetWindow::Draw(bool* pOpen)
         ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.2f, 1.0f), "%s", deleteConfirmPath.c_str());
         ImGui::Spacing();
 
-
-        auto it = ResourceManager::GetInstance().GetAllResources().begin();
         int refCount = 0;
         for (const auto& [id, info] : ResourceManager::GetInstance().GetAllResources())
         {
@@ -153,7 +143,7 @@ void AssetWindow::Draw(bool* pOpen)
                 }
                 else
                 {
-                    LOG(" Failed to delete asset: %s", deleteConfirmPath.c_str());
+                    LOG("Failed to delete asset: %s", deleteConfirmPath.c_str());
                 }
 
                 ImGui::CloseCurrentPopup();
@@ -173,7 +163,6 @@ void AssetWindow::Draw(bool* pOpen)
     ImGui::End();
 }
 
-
 void AssetWindow::DrawAssetTree(std::shared_ptr<AssetNode> node)
 {
     if (!node) return;
@@ -186,12 +175,10 @@ void AssetWindow::DrawAssetTree(std::shared_ptr<AssetNode> node)
     if (!node->isDirectory)
         flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
-
     std::string icon = node->isDirectory ? "[DIR]" : "[FIL]";
     std::string label = icon + " " + node->name;
 
     bool nodeOpen = ImGui::TreeNodeEx(node.get(), flags, "%s", label.c_str());
-
 
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
     {
@@ -220,7 +207,6 @@ void AssetWindow::DrawAssetTree(std::shared_ptr<AssetNode> node)
         ImGui::EndDragDropSource();
     }
 
-
     if (nodeOpen && node->isDirectory)
     {
         for (const auto& child : node->children)
@@ -230,7 +216,6 @@ void AssetWindow::DrawAssetTree(std::shared_ptr<AssetNode> node)
         ImGui::TreePop();
     }
 }
-
 
 void AssetWindow::DrawAssetDetails()
 {
@@ -252,7 +237,7 @@ void AssetWindow::DrawAssetDetails()
         ImGui::Text("Library: %s", info.libraryPath.c_str());
         ImGui::Text("ID: %s...", info.resourceID.substr(0, 12).c_str());
 
-        // processing status
+        // Processing status
         bool existsInLibrary = std::filesystem::exists(info.libraryPath);
         if (existsInLibrary)
         {
@@ -289,7 +274,7 @@ void AssetWindow::DrawAssetDetails()
 
         ImGui::Separator();
 
-        // action buttons
+        // Action buttons
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.8f, 0.2f, 1.0f));
         if (ImGui::Button("Load to Scene", ImVec2(150, 0)))
         {
@@ -315,7 +300,7 @@ void AssetWindow::DrawAssetDetails()
 
         ImGui::SameLine();
 
-        // Disable delete button if you have references
+        // Disable delete button if has references
         if (info.referenceCount > 0)
         {
             ImGui::BeginDisabled();
@@ -334,8 +319,7 @@ void AssetWindow::DrawAssetDetails()
             ImGui::EndDisabled();
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
             {
-                ImGui::SetTooltip("Cannot delete: Asset is in use (%d references)",
-                    info.referenceCount);
+                ImGui::SetTooltip("Cannot delete: Asset is in use (%d references)", info.referenceCount);
             }
         }
 
@@ -355,7 +339,6 @@ void AssetWindow::DrawAssetDetails()
         }
     }
 }
-
 
 void AssetWindow::DrawDragDropTarget()
 {
@@ -379,24 +362,6 @@ void AssetWindow::DrawDragDropTarget()
     ImGui::PopStyleColor();
 }
 
-bool AssetWindow::HandleDelete()
-{
-    if (selectedPath.empty()) return false;
-
-    bool success = ResourceManager::GetInstance().DeleteAsset(selectedPath);
-    if (success)
-    {
-        selectedPath = "";
-        selectedNode = nullptr;
-    }
-    return success;
-}
-
-bool AssetWindow::HandleImport()
-{
-    return true;
-}
-
 void AssetWindow::HandleDragDrop(const std::string& filePath)
 {
     LOG("Importing dropped file: %s", filePath.c_str());
@@ -409,9 +374,4 @@ void AssetWindow::HandleDragDrop(const std::string& filePath)
     {
         LOG("ERROR: Failed to import asset");
     }
-}
-
-void AssetWindow::HandleAssetDragDrop()
-{
-
 }
