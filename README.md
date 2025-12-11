@@ -130,7 +130,7 @@ A dedicated explorer for browsing and managing assets inside the `/Assets` folde
 
 # 🧬 Core Systems
 
-## 🏗 Custom File Format
+## 🏗 Custom File Format & Smart Importer
 
 To optimize loading times and independence, the engine converts all assets into custom internal binary formats stored inside `/Library`. This ensures that assets are loaded efficiently without parsing heavy formats like FBX at runtime.
 
@@ -148,6 +148,11 @@ To optimize loading times and independence, the engine converts all assets into 
 
 The `/Library` folder is fully volatile; it can be deleted and the engine will automatically regenerate it from the `/Assets` folder using the `.meta` files on the next startup.
 
+### Smart Import Features:
+* **Automatic Scaling:** The importer analyzes the bounding box of incoming models and automatically normalizes their scale to ensure they fit comfortably within the scene view, preventing massive or microscopic imports.
+* **Texture Path Recovery:** If a model's texture path is broken (common in FBX files), the engine intelligently searches for the texture filename in the local directory to restore the link automatically.
+* **Tangent Generation:** The importer calculates tangent space (`aiProcess_CalcTangentSpace`) for all meshes, readying the pipeline for normal mapping.
+
 ## 💾 Scene Serialization
 
 The engine supports full scene serialization. The current state of the scene can be saved and reloaded, preserving:
@@ -164,10 +169,13 @@ Located in the main toolbar, the simulation system allows testing the game withi
 - **Pause:** Freezes the `Time::deltaTime` and updates, allowing for inspection.
 - **Stop:** Halts the simulation and **restores** the scene to the exact state captured before pressing Play.
 
-## 📦 Bounding Boxes (AABB)
-Each mesh includes an automatically generated **Axis-Aligned Bounding Box (AABB)**. This is calculated during the import process by analyzing the mesh vertices and is used for:
-- Debug visualization in the editor.
-- Frustum Culling calculations.
+## 📦 Bounding Boxes & Visual Debugging
+
+The engine includes robust visualization tools for debugging:
+- **Reference Grid:** A procedural infinite grid on the XZ plane to assist with spatial orientation and object placement.
+- **AABB (Axis-Aligned Bounding Box):** Automatically generated for every mesh to support culling.
+- **Normals Visualization:** Options in the Inspector to render **Vertex Normals** and **Face Normals** vectors, helping to identify shading errors in imported geometry.
+- **Frustum Lines:** Visual representation of the camera's viewing volume.
 
 ## 🎯 Frustum Culling & Optimization
 
@@ -183,6 +191,8 @@ A robust **Resource Manager** has been implemented.
 
 ### Key Features:
 - **Reference Counting:** Resources (Meshes/Textures) are loaded into memory only once. Multiple GameObjects share the same resource pointer. If the reference count drops to zero, the resource can be unloaded.
+- **Safety Deletion:** The engine prevents the deletion of assets that are currently referenced by active GameObjects in the scene, preventing crashes.
+- **Library Regeneration:** If the `/Library` folder is deleted, the engine can fully reconstruct it from the source `/Assets` and `.meta` files.
 - **Importer Settings:**
     - **Textures:** Options for Filtering (Nearest/Linear), Wrapping, and Flip X/Y.
     - **Meshes:** Global scale adjustments and coordinate system fixes.
