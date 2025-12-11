@@ -258,20 +258,6 @@ void AssetWindow::DrawAssetDetails()
             }
         }
 
-        // References
-        if (info.referenceCount > 0)
-        {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.5f, 0.5f, 1.0f));
-            ImGui::Text("References: %d (IN USE)", info.referenceCount);
-            ImGui::PopStyleColor();
-        }
-        else
-        {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 1.0f, 0.5f, 1.0f));
-            ImGui::Text("References: %d (NOT IN USE)", info.referenceCount);
-            ImGui::PopStyleColor();
-        }
-
         ImGui::Separator();
 
         // Action buttons
@@ -325,18 +311,7 @@ void AssetWindow::DrawAssetDetails()
 
         ImGui::SameLine();
 
-        if (ImGui::Button("Copy Path", ImVec2(150, 0)))
-        {
-            ImGui::SetClipboardText(selectedPath.c_str());
-            LOG("Copied path to clipboard: %s", selectedPath.c_str());
-        }
-
-        // Button to reimport
-        if (ImGui::Button("Reimport", ImVec2(150, 0)))
-        {
-            ResourceManager::GetInstance().ForceProcessAsset(selectedPath);
-            LOG("Reimported: %s", selectedPath.c_str());
-        }
+     
     }
 }
 
