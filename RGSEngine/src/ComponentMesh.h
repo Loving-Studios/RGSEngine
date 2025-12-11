@@ -1,6 +1,9 @@
 #pragma once
 
 #include "Component.h"
+#include "Application.h"
+#include "LoadFiles.h"
+#include "GameObject.h"
 #include <glad/glad.h>
 #include "Log.h"
 #include <vector>
@@ -280,6 +283,35 @@ public:
             IBO = 0;
         }
         indexCount = 0;
+    }
+
+    void Save(nlohmann::json& j) const override
+    {
+        j["Type"] = "MESH";
+        j["Path"] = path;
+        j["LibraryPath"] = libraryPath;
+    }
+
+    void Load(const nlohmann::json& j) override
+    {
+        if (j.contains("Path")) path = j["Path"];
+        if (j.contains("LibraryPath")) {
+            libraryPath = j["LibraryPath"];
+
+            // Reload the mesh using the rgs format
+            MeshData meshData;
+            if (Application::GetInstance().loadFiles->LoadMeshFromCustomFormat(libraryPath.c_str(), meshData)) {
+                this->LoadMesh(meshData.vertices, meshData.num_vertices,
+                    meshData.indices, meshData.num_indices,
+                    meshData.texCoords, meshData.normals);
+
+                delete[] meshData.vertices;
+                delete[] meshData.indices;
+                if (meshData.texCoords) delete[] meshData.texCoords;
+                if (meshData.normals) delete[] meshData.normals;
+                if (meshData.colors) delete[] meshData.colors;
+            }
+        }
     }
 
 public:

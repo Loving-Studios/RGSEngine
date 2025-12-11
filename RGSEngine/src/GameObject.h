@@ -8,6 +8,7 @@
 
 #include "Component.h"
 #include "UIDGenerator.h"
+#include <nlohmann/json.hpp>
 
 // Forward declaration to avoid circular dependency
 class ComponentTransform;
@@ -69,6 +70,9 @@ public:
     GameObject* GetParent() const;
     const vector<shared_ptr<GameObject>>& GetChildren() const;
     bool IsActive() const;
+
+    void Save(nlohmann::json& j);
+    void Load(const nlohmann::json& j);
 
 public:
     string name;

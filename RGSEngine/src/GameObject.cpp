@@ -1,5 +1,8 @@
 #include "GameObject.h"
 #include "ComponentTransform.h"
+#include "ComponentMesh.h"
+#include "ComponentTexture.h"
+#include "ComponentCamera.h"
 #include "Log.h"
 
 #include <algorithm>
@@ -171,3 +174,93 @@ const string& GameObject::GetName() const { return name; }
 GameObject* GameObject::GetParent() const { return parent; }
 const vector<shared_ptr<GameObject>>& GameObject::GetChildren() const { return children; }
 bool GameObject::IsActive() const { return active; }
+
+void GameObject::Save(nlohmann::json& j)
+{
+    j["UID"] = this->uid;
+    j["Name"] = this->name;
+    j["Active"] = this->active;
+
+    // Save the UID of the father for reference
+    if (parent) j["ParentUID"] = parent->uid;
+
+    // Components array
+    j["Components"] = nlohmann::json::array();
+    for (const auto& component : components)
+    {
+        nlohmann::json compJson;
+        component->Save(compJson);
+        j["Components"].push_back(compJson);
+    }
+
+    // Child array
+    j["Children"] = nlohmann::json::array();
+    for (const auto& child : children)
+    {
+        nlohmann::json childJson;
+        child->Save(childJson);
+        j["Children"].push_back(childJson);
+    }
+}
+
+void GameObject::Load(const nlohmann::json& j)
+{
+    // Load basic data
+    if (j.contains("UID")) this->uid = j["UID"];
+    if (j.contains("Name")) this->name = j["Name"];
+    if (j.contains("Active")) this->active = j["Active"];
+
+    // Load Component
+    if (j.contains("Components"))
+    {
+        for (const auto& compJson : j["Components"])
+        {
+            std::string type = compJson.value("Type", "UNKNOWN");
+            std::shared_ptr<Component> newComponent = nullptr;
+
+            if (type == "TRANSFORM")
+            {
+                // Create the transform
+                newComponent = std::make_shared<ComponentTransform>(this);
+            }
+            else if (type == "MESH")
+            {
+                newComponent = std::make_shared<ComponentMesh>(this);
+            }
+            else if (type == "TEXTURE")
+            {
+                newComponent = std::make_shared<ComponentTexture>(this);
+            }
+            else if (type == "CAMERA")
+            {
+                newComponent = std::make_shared<ComponentCamera>(this);
+            }
+
+            // If created, load the data and fill
+            if (newComponent)
+            {
+                newComponent->Load(compJson);
+                this->AddComponent(newComponent);
+            }
+        }
+    }
+
+    // Load Childs
+    if (j.contains("Children"))
+    {
+        for (const auto& childJson : j["Children"])
+        {
+            // Extract name for the Child
+            std::string childName = childJson.value("Name", "Unnamed");
+
+            // Create
+            std::shared_ptr<GameObject> childGO = std::make_shared<GameObject>(childName);
+
+            // Call to Load himself
+            childGO->Load(childJson);
+
+            // Add object
+            this->AddChild(childGO);
+        }
+    }
+}

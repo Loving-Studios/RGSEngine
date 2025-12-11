@@ -45,6 +45,9 @@ public:
     bool IsPaused() const { return simulationState == SimulationState::PAUSED; }
     bool IsStopped() const { return simulationState == SimulationState::STOPPED; }
 
+    void SaveScene(const char* path);
+    void LoadScene(const char* path);
+
 public:
     // This is a Smart Pointer for the rootObject
     // When the "rootObject" is destroyed, makes the CleanUp auto to all the childrens and components

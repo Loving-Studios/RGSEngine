@@ -1,4 +1,5 @@
 #pragma once
+#include <nlohmann/json.hpp>
 
 enum class ComponentType
 {
@@ -25,6 +26,9 @@ public:
     virtual void Update() {}
     virtual void Enable() { active = true; }
     virtual void Disable() { active = false; }
+
+    virtual void Save(nlohmann::json& j) const {}
+    virtual void Load(const nlohmann::json& j) {}
 
     ComponentType GetType() const { return type; }
     bool IsActive() const { return active; }

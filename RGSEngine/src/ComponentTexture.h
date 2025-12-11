@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Component.h"
+#include "Application.h"
+#include "LoadFiles.h"
 #include <glad/glad.h>
 #include <string>
 
@@ -40,6 +42,31 @@ public:
         {
             glDeleteTextures(1, &textureID);
             textureID = 0;
+        }
+    }
+
+    void Save(nlohmann::json& j) const override
+    {
+        j["Type"] = "TEXTURE";
+        j["Path"] = path;
+        j["LibraryPath"] = libraryPath;
+    }
+
+    void Load(const nlohmann::json& j) override
+    {
+        if (j.contains("Path")) path = j["Path"];
+        if (j.contains("LibraryPath")) {
+            libraryPath = j["LibraryPath"];
+
+            // Reload the texture with LoadFIles
+            TextureHeader header;
+            char* buffer = nullptr;
+            if (Application::GetInstance().loadFiles->LoadTextureFromCustomFormat(libraryPath.c_str(), header, buffer)) {
+                this->textureID = Application::GetInstance().loadFiles->CreateTextureFromBuffer(header, buffer);
+                this->width = header.width;
+                this->height = header.height;
+                delete[] buffer;
+            }
         }
     }
 

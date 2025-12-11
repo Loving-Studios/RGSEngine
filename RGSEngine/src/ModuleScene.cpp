@@ -16,30 +16,78 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <nlohmann/json.hpp>
+#include <fstream>
+
+static void SavePrimitiveMesh(std::shared_ptr<ComponentMesh> mesh, const char* name,
+    float* vertices, unsigned int num_vertices,
+    unsigned int* indices, unsigned int num_indices,
+    float* uvs, float* normals)
+{
+    // Load in GPU
+    mesh->LoadMesh(vertices, num_vertices, indices, num_indices, uvs, normals);
+
+    // Prepare the data in memory
+    MeshData meshData;
+    meshData.num_vertices = num_vertices;
+    meshData.num_indices = num_indices;
+    meshData.vertices = vertices;
+    meshData.indices = indices;
+    meshData.texCoords = uvs;
+    meshData.normals = normals;
+    meshData.hasTexCoords = (uvs != nullptr);
+    meshData.hasNormals = (normals != nullptr);
+
+    // Define the path
+    std::string libPath = "Library/Meshes/" + std::string(name) + ".rgs";
+
+    // Save the physic file
+    Application::GetInstance().loadFiles->SaveMeshToCustomFormat(libPath.c_str(), meshData);
+
+    // Assign the path to the component so its easier to load
+    mesh->path = "Primitive_" + std::string(name);
+    mesh->libraryPath = libPath;
+}
 
 static void CreateDefaultCheckerTexture(std::shared_ptr<ComponentTexture> texture)
 {
-    const int texWidth = 8, texHeight = 8;
+    const int texWidth = 64, texHeight = 64;
     GLubyte checkerTexture[texWidth * texHeight * 4];
     for (int y = 0; y < texHeight; y++) {
         for (int x = 0; x < texWidth; x++) {
             int i = (y * texWidth + x) * 4;
-            bool isBlack = ((x % 2) == 0) != ((y % 2) == 0);
+            bool isBlack = ((x / 8) % 2) == ((y / 8) % 2);
             checkerTexture[i + 0] = isBlack ? 0 : 255;
             checkerTexture[i + 1] = isBlack ? 0 : 255;
             checkerTexture[i + 2] = isBlack ? 0 : 255;
             checkerTexture[i + 3] = 255;
         }
     }
+
+    // Create in OpenGL
     glGenTextures(1, &texture->textureID);
     glBindTexture(GL_TEXTURE_2D, texture->textureID);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, checkerTexture);
     glBindTexture(GL_TEXTURE_2D, 0);
+
+    // Save in Library
+    TextureHeader header;
+    header.width = texWidth;
+    header.height = texHeight;
+    header.format = GL_RGBA;
+    header.dataSize = sizeof(checkerTexture);
+
+    std::string libPath = "Library/Textures/default_checker.rgst";
+
+    // Save the file
+    Application::GetInstance().loadFiles->SaveTextureToCustomFormat(libPath.c_str(), header, (const char*)checkerTexture);
+
+    // Assign data to the component
     texture->width = texWidth;
     texture->height = texHeight;
     texture->path = "default_checker";
+    texture->libraryPath = libPath;
 }
 
 
@@ -191,7 +239,10 @@ void ModuleScene::CreatePyramid()
     };
     unsigned int num_indices = 18; // 6 faces * 3 index
 
-    mesh->LoadMesh(positions, num_vertices, indices, num_indices, uvs, nullptr);
+    SavePrimitiveMesh(mesh, "Primitive_Pyramid",
+        positions, num_vertices,
+        indices, num_indices,
+        uvs, nullptr);
     go->AddComponent(mesh);
 
     auto texture = std::make_shared<ComponentTexture>(go.get());
@@ -225,7 +276,10 @@ void ModuleScene::CreateTriangle()
     };
     unsigned int indices[] = { 0, 1, 2 };
 
-    mesh->LoadMesh(positions, 3, indices, 3, uvs, normals);
+    SavePrimitiveMesh(mesh, "Primitive_Triangle",
+        positions, 3,
+        indices, 3,
+        uvs, normals);
     go->AddComponent(mesh);
 
     auto texture = std::make_shared<ComponentTexture>(go.get());
@@ -262,7 +316,10 @@ void ModuleScene::CreateSquare()
     };
     unsigned int indices[] = { 0, 1, 2,  0, 2, 3 };
 
-    mesh->LoadMesh(positions, 4, indices, 6, uvs, normals);
+    SavePrimitiveMesh(mesh, "Primitive_Square",
+        positions, 4,
+        indices, 6,
+        uvs, normals);
     go->AddComponent(mesh);
 
     auto texture = std::make_shared<ComponentTexture>(go.get());
@@ -299,7 +356,10 @@ void ModuleScene::CreateRectangle()
     };
     unsigned int indices[] = { 0, 1, 2,  0, 2, 3 };
 
-    mesh->LoadMesh(positions, 4, indices, 6, uvs, normals);
+    SavePrimitiveMesh(mesh, "Primitive_Rectangle",
+        positions, 4,
+        indices, 6,
+        uvs, normals);
     go->AddComponent(mesh);
 
     auto texture = std::make_shared<ComponentTexture>(go.get());
@@ -371,7 +431,10 @@ void ModuleScene::CreateCube()
     };
     unsigned int num_indices = 36;
 
-    mesh->LoadMesh(positions, num_vertices, indices, num_indices, uvs, normals);
+    SavePrimitiveMesh(mesh, "Primitive_Cube",
+        positions, 24,
+        indices, 36,
+        uvs, normals);
     go->AddComponent(mesh);
 
     auto texture = std::make_shared<ComponentTexture>(go.get());
@@ -435,7 +498,10 @@ void ModuleScene::CreateSphere()
         }
     }
 
-    mesh->LoadMesh(positions.data(), positions.size() / 3, indices.data(), indices.size(), uvs.data(), normals.data());
+    SavePrimitiveMesh(mesh, "Primitive_Sphere",
+        positions.data(), positions.size() / 3,
+        indices.data(), indices.size(),
+        uvs.data(), normals.data());
     go->AddComponent(mesh);
 
     auto texture = std::make_shared<ComponentTexture>(go.get());
@@ -579,4 +645,71 @@ void ModuleScene::Step()
     }
 
     LOG("Advanced one frame (Time: %.3f)", Time::time);
+}
+
+void ModuleScene::SaveScene(const char* path)
+{
+    if (rootObject == nullptr) return;
+
+    LOG("Saving Scene to: %s", path);
+
+    nlohmann::json sceneJson;
+    // Initialize the saving from the root of the scene in treemode
+    rootObject->Save(sceneJson);
+
+    std::ofstream file(path);
+    if (file.is_open())
+    {
+        // 4 spacing in json so its better visually
+        file << sceneJson.dump(4);
+        file.close();
+    }
+    else
+    {
+        LOG("Error: Could not open file for saving scene.");
+    }
+}
+
+void ModuleScene::LoadScene(const char* path)
+{
+    std::ifstream file(path);
+    if (!file.is_open())
+    {
+        LOG("Error: Could not open scene file: %s", path);
+        return;
+    }
+
+    nlohmann::json sceneJson;
+    try
+    {
+        file >> sceneJson;
+    }
+    catch (nlohmann::json::parse_error& e)
+    {
+        LOG("Error parsing scene JSON: %s", e.what());
+        return;
+    }
+    file.close();
+
+    LOG("Loading Scene from: %s", path);
+
+    // Clean current scene
+    // New SceneRoot, delete the old one because of the shared_ptr
+    rootObject = std::make_shared<GameObject>("SceneRoot");
+
+    // Iterate through "Children" array to build the scene
+    if (sceneJson.contains("Children"))
+    {
+        for (const auto& childJson : sceneJson["Children"])
+        {
+            std::string name = childJson.value("Name", "GameObject");
+            std::shared_ptr<GameObject> newObj = std::make_shared<GameObject>(name);
+
+            // The object loads the components and then the childs
+            newObj->Load(childJson);
+
+            // Add to the new root
+            AddGameObject(newObj);
+        }
+    }
 }

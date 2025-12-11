@@ -9,6 +9,32 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+namespace glm {
+    inline void to_json(json& j, const vec3& v) {
+        j = json{ {"x", v.x}, {"y", v.y}, {"z", v.z} };
+    }
+
+    inline void from_json(const json& j, vec3& v) {
+        v.x = j.at("x").get<float>();
+        v.y = j.at("y").get<float>();
+        v.z = j.at("z").get<float>();
+    }
+
+    inline void to_json(json& j, const quat& q) {
+        j = json{ {"x", q.x}, {"y", q.y}, {"z", q.z}, {"w", q.w} };
+    }
+
+    inline void from_json(const json& j, quat& q) {
+        q.x = j.at("x").get<float>();
+        q.y = j.at("y").get<float>();
+        q.z = j.at("z").get<float>();
+        q.w = j.at("w").get<float>();
+    }
+}
 
 class ComponentTransform : public Component
 {
@@ -23,6 +49,19 @@ public:
     }
 
     ~ComponentTransform() {}
+
+    void Save(json& j) const override {
+        j["Type"] = "TRANSFORM";
+        j["Position"] = position;
+        j["Rotation"] = rotation;
+        j["Scale"] = scale;
+    }
+
+    void Load(const json& j) override {
+        if (j.contains("Position")) position = j["Position"];
+        if (j.contains("Rotation")) rotation = j["Rotation"];
+        if (j.contains("Scale")) scale = j["Scale"];
+    }
 
     // --- Main methods ---
 

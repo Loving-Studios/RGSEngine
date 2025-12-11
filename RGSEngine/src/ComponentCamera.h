@@ -12,6 +12,8 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
 
+#include <nlohmann/json.hpp>
+
 class ComponentCamera : public Component
 {
 public:
@@ -147,6 +149,25 @@ public:
         glBindVertexArray(frustumVAO);
         glDrawArrays(GL_LINES, 0, 24); // 12 lines * 2 vertex
         glBindVertexArray(0);
+    }
+
+    void Save(nlohmann::json& j) const override
+    {
+        j["Type"] = "CAMERA";
+        j["FOV"] = cameraFOV;
+        j["NearPlane"] = nearPlane;
+        j["FarPlane"] = farPlane;
+        j["Active"] = active;
+    }
+
+    void Load(const nlohmann::json& j) override
+    {
+        if (j.contains("FOV")) cameraFOV = j["FOV"];
+        if (j.contains("NearPlane")) nearPlane = j["NearPlane"];
+        if (j.contains("FarPlane")) farPlane = j["FarPlane"];
+        if (j.contains("Active")) active = j["Active"];
+
+        // GenerateFrustum(); 
     }
 
 public:

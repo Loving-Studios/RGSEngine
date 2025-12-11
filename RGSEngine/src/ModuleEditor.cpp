@@ -98,6 +98,59 @@ std::string OpenFileDialog(const char* filter)
     return std::string("");
 }
 
+std::string SaveFileDialog(const char* filter)
+{
+    OPENFILENAMEA ofn;
+    char fileName[MAX_PATH] = "";
+    ZeroMemory(&ofn, sizeof(ofn));
+
+    ofn.lStructSize = sizeof(ofn);
+
+    // Get window and HWND
+    Window* winModule = Application::GetInstance().window.get();
+    SDL_Window* sdlWindow = winModule->window;
+    HWND hwnd = (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(sdlWindow), "SDL.window.win32.hwnd", NULL);
+
+    ofn.hwndOwner = hwnd;
+    ofn.lpstrFilter = filter;
+    ofn.lpstrFile = fileName;
+    ofn.nMaxFile = MAX_PATH;
+    // OFN_OVERWRITEPROMPT
+    ofn.Flags = OFN_EXPLORER | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR | OFN_OVERWRITEPROMPT;
+    ofn.lpstrDefExt = "json";
+
+    bool wasFullscreen = winModule->fullscreen;
+
+    if (wasFullscreen)
+    {
+        winModule->SetFullscreen(false);
+        for (int i = 0; i < 10; ++i)
+        {
+            SDL_PumpEvents();
+            SDL_GL_SwapWindow(sdlWindow);
+            SDL_Delay(10);
+        }
+    }
+
+    BOOL result = GetSaveFileNameA(&ofn);
+
+    if (wasFullscreen)
+    {
+        winModule->SetFullscreen(true);
+        for (int i = 0; i < 5; ++i)
+        {
+            SDL_PumpEvents();
+            SDL_Delay(10);
+        }
+    }
+
+    if (result)
+    {
+        return std::string(fileName);
+    }
+    return std::string("");
+}
+
 bool ModuleEditor::Start()
 {
     if (Application::GetInstance().isGameMode)
@@ -367,6 +420,31 @@ void ModuleEditor::DrawMainMenuBar()
         // --- File Menu ---
         if (ImGui::BeginMenu("File"))
         {
+            if (ImGui::MenuItem("Save Scene"))
+            {
+                // Open the windows dialog
+                std::string path = SaveFileDialog("JSON Files\0*.json\0All Files\0*.*\0");
+
+                // Valid path
+                if (!path.empty())
+                {
+                    // Save the scene in this path
+                    Application::GetInstance().scene->SaveScene(path.c_str());
+                }
+            }
+
+            if (ImGui::MenuItem("Load Scene"))
+            {
+                // Use the windows dialog to search the json file
+                std::string path = OpenFileDialog("JSON Files\0*.json\0All Files\0*.*\0");
+                if (!path.empty())
+                {
+                    Application::GetInstance().scene->LoadScene(path.c_str());
+                    selectedGameObject = nullptr;
+                }
+            }
+            ImGui::Separator();
+
             // Exit option
             if (ImGui::MenuItem("Exit"))
             {

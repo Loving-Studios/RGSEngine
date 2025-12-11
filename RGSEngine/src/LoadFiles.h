@@ -73,6 +73,10 @@ public:
     bool SaveMeshToCustomFormat(const char* path, const MeshData& meshData);
     bool LoadMeshFromCustomFormat(const char* path, MeshData& meshData);
 
+    bool LoadTextureFromCustomFormat(const char* path, TextureHeader& header, char*& buffer);
+    unsigned int CreateTextureFromBuffer(const TextureHeader& header, const char* buffer);
+    bool SaveTextureToCustomFormat(const char* path, const TextureHeader& header, const char* buffer);
+
 private:
 
     void ProcessMesh(aiMesh* aiMesh, MeshData& meshData);
@@ -94,7 +98,5 @@ private:
     aiLogStream stream;
 
     bool ImportTextureWithDevIL(const char* path, char*& buffer, TextureHeader& header);
-    bool SaveTextureToCustomFormat(const char* path, const TextureHeader& header, const char* buffer);
-    bool LoadTextureFromCustomFormat(const char* path, TextureHeader& header, char*& buffer);
-    unsigned int CreateTextureFromBuffer(const TextureHeader& header, const char* buffer);
+
 };
