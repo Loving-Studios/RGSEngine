@@ -35,6 +35,11 @@ The camera system is designed to mimic the Unity-style controls:
 * **Mouse Picking (Click Left Mouse Button):**
     * Select the desired `GameObject` with a mouse click, activate the object's gizmo and sets orbit target.
 
+### Scene Management
+- **Save Scene:** Go to `File > Save Scene`. A Windows dialog will appear. Choose a location and name (`SceneExample.json`).
+- **Load Scene:** Go to `File > Load Scene` and select a `.json` file.
+- **Primitives:** Create primitives from the `Create` menu. They are automatically saved to the Library to ensure visibility after loading.
+
 ## 🔍 Mouse Picking
 Implemented using raycasting through the octree with optional debug visualization.
 
@@ -153,14 +158,23 @@ The `/Library` folder is fully volatile; it can be deleted and the engine will a
 * **Texture Path Recovery:** If a model's texture path is broken (common in FBX files), the engine intelligently searches for the texture filename in the local directory to restore the link automatically.
 * **Tangent Generation:** The importer calculates tangent space (`aiProcess_CalcTangentSpace`) for all meshes, readying the pipeline for normal mapping.
 
+- **Custom File Format (.rgs & .rgst):**
+  - **Library System:** Implemented a Unity-style `Library/` folder.
+  - **Meshes:** Imported FBX files are converted to optimized binary `.rgs` files.
+  - **Textures:** Images (PNG, JPG, TGA) are converted to optimized binary `.rgst` files.
+  - **Fast Loading:** The engine prioritizes loading from the binary `Library` format for performance.
+
+- **Primitives Persistence:**
+  - Procedural primitives (Cube, Sphere, Pyramid, etc.) are automatically generated, saved to `Library`, and serialized correctly.
+
 ## 💾 Scene Serialization
 
 The engine supports full scene serialization. The current state of the scene can be saved and reloaded, preserving:
+- Full Scene Saving/Loading to **JSON** format (`nlohmann/json`).
 - GameObjects hierarchy and parent-child relationships.
 - Component data (Transform values, Mesh references, Texture references, Camera settings).
 - Linkage to resources via UUIDs.
-
-*Note: The scene state is automatically captured when entering Play Mode.*
+- **Windows Native Dialogs:** Integrated `SaveFileDialog` and `OpenFileDialog` for easy scene management.
 
 ## 🎬 Simulation Controls (Play / Pause / Stop)
 
