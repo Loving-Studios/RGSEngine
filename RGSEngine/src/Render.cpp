@@ -6,6 +6,7 @@
 #include "Input.h"
 
 #include "ModuleScene.h"
+#include "ModuleEditor.h"
 #include "GameObject.h"
 #include "ComponentTransform.h"
 #include "ComponentMesh.h"
@@ -59,6 +60,7 @@ Render::Render() : Module()
 
 	drawVertexNormals = false;
 	drawFaceNormals = false;
+	drawAABBs = false;
 
 	// Initialize camera rotation
 	cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
@@ -457,7 +459,7 @@ void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 
 		glDisable(GL_BLEND);
 
-		if (drawVertexNormals || drawFaceNormals)
+		if (drawVertexNormals || drawFaceNormals || drawAABBs)
 		{
 			// Use the shader of the normals
 			normalsShader->Use();
@@ -466,6 +468,7 @@ void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 
 			if (drawVertexNormals) mesh->DrawNormals();
 			if (drawFaceNormals)   mesh->DrawFaceNormals();
+			if (drawAABBs)         mesh->DrawAABB();
 		}
 	}
 

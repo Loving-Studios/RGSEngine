@@ -49,6 +49,7 @@ public:
 
 	bool drawVertexNormals;
 	bool drawFaceNormals;
+	bool drawAABBs;
 
 	void ProcessKeyboardMovement(float dt);
 	void FocusOnGameObject(GameObject* go);

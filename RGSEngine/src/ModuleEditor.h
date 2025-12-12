@@ -8,6 +8,7 @@
 #include "ImGuizmo.h"
 #include "AssetWindow.h"
 #include "ResourceStatsWindow.h"
+#include "Ray.h"
 
 class GameObject;
 
@@ -81,10 +82,12 @@ private:
     bool showAssetWindow = true;
     bool showResourceStatsWindow = false;
 
+
     bool showTimerWindow = false;
     void DrawTimerWindow();
 
     // Timer variables
     float simulationElapsedTime = 0.0f;  
     float simulationStartTime = 0.0f;    
+
 };

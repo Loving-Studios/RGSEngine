@@ -18,6 +18,17 @@ using std::string;
 using std::vector;
 using std::shared_ptr;
 
+
+// Structure for the Axis-Aligned Bounding Box
+struct AABB
+{
+    glm::vec3 minPoint;
+    glm::vec3 maxPoint;
+
+    AABB() : minPoint(0.0f), maxPoint(0.0f) {}
+    AABB(glm::vec3 min, glm::vec3 max) : minPoint(min), maxPoint(max) {}
+};
+
 class GameObject
 {
 public:
@@ -65,6 +76,9 @@ public:
     // ImGuizmo provides the new global matrix, needs to be calculated the local matrix of the object and separate the position, rotation and scale
     void SetLocalFromGlobal(const glm::mat4& newGlobalMatrix);
 
+    // Update AABB (called from Update())
+    void UpdateAABB();
+
     // --- Getters and Setters ---
     const string& GetName() const;
     GameObject* GetParent() const;
@@ -85,4 +99,8 @@ public:
 
     vector<shared_ptr<Component>> components;
     vector<shared_ptr<GameObject>> children;
+
+    // AABB in local (mesh) and global (transformed) space
+    AABB localAABB;
+    AABB globalAABB;
 };

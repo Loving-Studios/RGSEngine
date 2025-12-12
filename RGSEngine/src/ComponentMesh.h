@@ -9,6 +9,7 @@
 #include <vector>
 #include <glm/glm.hpp>
 #include <string>
+#include <cfloat>
 
 class ComponentMesh : public Component
 {
@@ -18,7 +19,8 @@ public:
         VAO(0), VBO(0), IBO(0), VBO_UV(0), VBO_Normals(0),
         indexCount(0),
         normalsVAO(0), normalsVBO(0), normalVertexCount(0),
-        faceNormalsVAO(0), faceNormalsVBO(0), faceNormalVertexCount(0)
+        faceNormalsVAO(0), faceNormalsVBO(0), faceNormalVertexCount(0),
+        aabbVAO(0), aabbVBO(0)
     {
     }
 
@@ -36,6 +38,16 @@ public:
         CleanUp();
 
         indexCount = num_indices;
+
+        cpuVertices.resize(num_vertices * 3);
+        std::memcpy(cpuVertices.data(), vertices, num_vertices * 3 * sizeof(float));
+
+        cpuIndices.resize(num_indices);
+        std::memcpy(cpuIndices.data(), indices, num_indices * sizeof(unsigned int));
+
+        LOG("CPU data stored: %d vertices, %d indices", num_vertices, num_indices);
+
+        CalculateLocalAABB(vertices, num_vertices);
 
         // Create  VAO
         glGenVertexArrays(1, &VAO);
@@ -101,8 +113,89 @@ public:
         // Unlink VAO
         glBindVertexArray(0);
 
+        SetupAABBBuffers();
+
         LOG("Mesh loaded to GPU: VAO=%d, VBO=%d, IBO=%d, Vertices=%d, Indices=%d",
             VAO, VBO, IBO, num_vertices, indexCount);
+        LOG("AABB calculated: Min(%.2f, %.2f, %.2f) Max(%.2f, %.2f, %.2f)",
+            owner->localAABB.minPoint.x, owner->localAABB.minPoint.y, owner->localAABB.minPoint.z,
+            owner->localAABB.maxPoint.x, owner->localAABB.maxPoint.y, owner->localAABB.maxPoint.z);
+    }
+
+    void CalculateLocalAABB(float* vertices, unsigned int num_vertices)
+    {
+        if (vertices == nullptr || num_vertices == 0)
+        {
+            owner->localAABB.minPoint = glm::vec3(0.0f);
+            owner->localAABB.maxPoint = glm::vec3(0.0f);
+            return;
+        }
+
+        // Initialise with extreme values
+        glm::vec3 minPoint(FLT_MAX);
+        glm::vec3 maxPoint(-FLT_MAX);
+
+        // Iterate through all vertices
+        for (unsigned int i = 0; i < num_vertices; ++i)
+        {
+            glm::vec3 vertex(
+                vertices[i * 3 + 0],
+                vertices[i * 3 + 1],
+                vertices[i * 3 + 2]
+            );
+
+            // Update minimum and maximum
+            minPoint = glm::min(minPoint, vertex);
+            maxPoint = glm::max(maxPoint, vertex);
+        }
+
+        // Assign to the GameObject owner
+        owner->localAABB.minPoint = minPoint;
+        owner->localAABB.maxPoint = maxPoint;
+    }
+
+    void SetupAABBBuffers()
+    {
+        // The 8 vertices of the AABB in local space
+        glm::vec3 min = owner->localAABB.minPoint;
+        glm::vec3 max = owner->localAABB.maxPoint;
+
+        // The 12 lines that form the cube (24 vertices in total, 2 per line)
+        float aabbVertices[] = {
+            // Bottom face (4 lines)
+            min.x, min.y, min.z,   max.x, min.y, min.z,  // Front bottom
+            max.x, min.y, min.z,   max.x, min.y, max.z,  // Right bottom
+            max.x, min.y, max.z,   min.x, min.y, max.z,  // Back bottom
+            min.x, min.y, max.z,   min.x, min.y, min.z,  // Left bottom
+
+            // Top face (4 lines)
+            min.x, max.y, min.z,   max.x, max.y, min.z,  // Front top
+            max.x, max.y, min.z,   max.x, max.y, max.z,  // Right top
+            max.x, max.y, max.z,   min.x, max.y, max.z,  // Back top
+            min.x, max.y, max.z,   min.x, max.y, min.z,  // Left top
+
+            // Vertical lines (4 lines)
+            min.x, min.y, min.z,   min.x, max.y, min.z,  // Front-left
+            max.x, min.y, min.z,   max.x, max.y, min.z,  // Front-right
+            max.x, min.y, max.z,   max.x, max.y, max.z,  // Back-right
+            min.x, min.y, max.z,   min.x, max.y, max.z   // Back-left
+        };
+
+        // Create VAO and VBO for the AABB
+        glGenVertexArrays(1, &aabbVAO);
+        glBindVertexArray(aabbVAO);
+
+        glGenBuffers(1, &aabbVBO);
+        glBindBuffer(GL_ARRAY_BUFFER, aabbVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(aabbVertices), aabbVertices, GL_STATIC_DRAW);
+
+        // Attribute 0: positions
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+
+        glBindVertexArray(0);
+
+        LOG("AABB visualization buffers created: VAO=%d, VBO=%d", aabbVAO, aabbVBO);
     }
 
     void SetupNormalsBuffers(float* vertices, unsigned int num_vertices, float* normals)
@@ -233,6 +326,17 @@ public:
         }
     }
 
+    void DrawAABB()
+    {
+        if (aabbVAO != 0)
+        {
+            glBindVertexArray(aabbVAO);
+            // Draw the 12 lines of the AABB (24 vertices)
+            glDrawArrays(GL_LINES, 0, 24);
+            glBindVertexArray(0);
+        }
+    }
+
     void CleanUp()
     {
         if (VAO != 0)
@@ -277,12 +381,25 @@ public:
             faceNormalsVBO = 0;
         }
         faceNormalVertexCount = 0;
+        if (aabbVAO != 0)
+        {
+            glDeleteVertexArrays(1, &aabbVAO);
+            aabbVAO = 0;
+        }
+        if (aabbVBO != 0)
+        {
+            glDeleteBuffers(1, &aabbVBO);
+            aabbVBO = 0;
+        }
         if (IBO != 0)
         {
             glDeleteBuffers(1, &IBO);
             IBO = 0;
         }
         indexCount = 0;
+
+        cpuVertices.clear();
+        cpuIndices.clear();
     }
 
     void Save(nlohmann::json& j) const override
@@ -332,4 +449,11 @@ public:
     unsigned int faceNormalsVAO;
     unsigned int faceNormalsVBO;
     unsigned int faceNormalVertexCount;
+
+    // Buffers for visualising the AABB
+    unsigned int aabbVAO;
+    unsigned int aabbVBO;
+
+    std::vector<float> cpuVertices;
+    std::vector<unsigned int> cpuIndices;
 };

@@ -27,6 +27,7 @@
 #include "LoadFiles.h"
 #include "Time.h"
 #include "ResourceManager.h"
+#include "Ray.h"
 
 #include <IL/il.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -252,7 +253,62 @@ bool ModuleEditor::Update(float dt)
     }
 
     // --- FOCUS ON SELECTED GAMEOBJECT ---
+
+    // --- MOUSE PICKING ---
     Input* input = Application::GetInstance().input.get();
+    ImGuiIO& io = ImGui::GetIO();
+
+    // Only perform picking if we are NOT on the ImGui interface
+    if (!io.WantCaptureMouse)
+    {
+        // Left click to select objects
+        if (input->GetMouseButtonDown(SDL_BUTTON_LEFT) == KEY_DOWN)
+        {
+            // Get mouse position
+            int mouseX, mouseY;
+            input->GetMousePosition(mouseX, mouseY);
+
+            // Obtain window dimensions
+            int screenWidth, screenHeight;
+            Application::GetInstance().window->GetWindowSize(screenWidth, screenHeight);
+
+            // Obtain camera matrices
+            const glm::mat4& viewMatrix = Application::GetInstance().render->GetViewMatrix();
+            const glm::mat4& projectionMatrix = Application::GetInstance().render->GetProjectionMatrix();
+
+            // Generate the ray from the camera to the mouse
+            Ray pickRay = Raycast::ScreenPointToRay(
+                mouseX, mouseY,
+                screenWidth, screenHeight,
+                viewMatrix, projectionMatrix
+            );
+
+
+            // Find the nearest intersecting object
+            GameObject* root = Application::GetInstance().scene->rootObject.get();
+            float distance = 0.0f;
+            GameObject* hitObject = Raycast::FindClosestIntersection(pickRay, root, distance);
+
+            if (hitObject != nullptr)
+            {
+                // Do not select SceneRoot
+                if (hitObject->GetName() != "SceneRoot")
+                {
+                    selectedGameObject = hitObject;
+                    LOG("Selected: %s (distance: %.2f)", hitObject->GetName().c_str(), distance);
+                }
+            }
+            else
+            {
+                // Click in the empty space to deselect
+                selectedGameObject = nullptr;
+                LOG("Deselected (no hit)");
+            }
+        }
+    }
+
+    // --- FOCUS ON SELECTED GAMEOBJECT ---
+    //Input* input = Application::GetInstance().input.get();
 
     // Process F key if an object is selected
     if (selectedGameObject != nullptr)
@@ -993,6 +1049,10 @@ void ModuleEditor::DrawInspectorWindow()
                 if (mesh->faceNormalsVAO != 0)
                 {
                     ImGui::Checkbox("Show Face Normals", &Application::GetInstance().render->drawFaceNormals);
+                }
+                if (mesh->aabbVAO != 0)
+                {
+                    ImGui::Checkbox("Draw AABB", &Application::GetInstance().render->drawAABBs);
                 }
             }
             break;
