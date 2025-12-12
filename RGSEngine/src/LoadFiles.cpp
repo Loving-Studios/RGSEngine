@@ -7,6 +7,7 @@
 #include "ComponentTexture.h"
 #include "ModuleScene.h"
 #include "Log.h"
+#include "ResourceManager.h"
 
 #include <IL/il.h>
 #include <IL/ilu.h>
@@ -250,7 +251,6 @@ std::shared_ptr<GameObject> LoadFiles::LoadFBX(const char* file_path)
         ProcessMesh(scene->mMeshes[0], meshData);
         rootObject = CreateGameObjectFromMesh(meshData, fileName.c_str(), file_path);
 
-        
         LoadMaterialTextures(scene, scene->mMeshes[0], rootObject, fbxDirectory);
 
         // Release temporary data
@@ -287,6 +287,10 @@ std::shared_ptr<GameObject> LoadFiles::LoadFBX(const char* file_path)
             LOG("Mesh VAO: %d, VBO: %d, IBO: %d, IndexCount: %d",
                 mesh->VAO, mesh->VBO, mesh->IBO, mesh->indexCount);
         }
+
+       
+        AcquireResourceReferencesForGameObject(rootObject, file_path);
+        LOG("Resource references acquired for loaded FBX");
     }
 
     return rootObject;
@@ -606,35 +610,58 @@ bool LoadFiles::LoadTexture(const char* file_path, GameObject* target)
 
     LOG("Texture loaded successfully (ID: %d)", textureID);
 
-// Check if the Component has a Mesh to apply the texture
-if (target->GetComponent<ComponentMesh>() != nullptr)
-{
-    auto textureComp = target->GetComponent<ComponentTexture>();
-    if (textureComp)
+    // Check if the Component has a Mesh to apply the texture
+    if (target->GetComponent<ComponentMesh>() != nullptr)
     {
-        // If has a component, update the data
-        textureComp->textureID = textureID;
-        // Save the original path by reference, Asset
-        textureComp->path = file_path;
-        textureComp->libraryPath = internalPath;
-        // Remove the default flag to see the new one
-        textureComp->useDefaultTexture = false;
-        LOG("Texture component UPDATED on GameObject: %s", target->GetName().c_str());
+        auto textureComp = target->GetComponent<ComponentTexture>();
+
+        // Release old texture reference if exists
+        if (textureComp && !textureComp->path.empty() &&
+            textureComp->path != "default_checker" &&
+            !textureComp->useDefaultTexture)
+        {
+            auto& rm = ResourceManager::GetInstance();
+            auto it = rm.assetPathToID.find(textureComp->path);
+            if (it != rm.assetPathToID.end())
+            {
+                rm.ReleaseResourceReference(it->second);
+                LOG("Released old texture reference: %s", textureComp->path.c_str());
+            }
+        }
+
+        if (textureComp)
+        {
+            // If has a component, update the data
+            textureComp->textureID = textureID;
+            textureComp->path = file_path;
+            textureComp->libraryPath = internalPath;
+            textureComp->useDefaultTexture = false;
+            LOG("Texture component UPDATED on GameObject: %s", target->GetName().c_str());
+        }
+        else
+        {
+            // If doesn't have a component, assign a new one
+            auto newTex = std::make_shared<ComponentTexture>(target);
+            newTex->textureID = textureID;
+            newTex->path = file_path;
+            newTex->libraryPath = internalPath;
+            target->AddComponent(newTex);
+            LOG("Texture component ADDED to GameObject: %s", target->GetName().c_str());
+        }
+
+        // Acquire new texture reference
+        auto& rm = ResourceManager::GetInstance();
+        auto it = rm.assetPathToID.find(file_path);
+        if (it != rm.assetPathToID.end())
+        {
+            rm.AcquireResourceReference(it->second);
+            LOG("Acquired texture reference: %s", file_path);
+        }
+
+        LOG("Texture applied to %s (Internal: %s)", target->GetName().c_str(), internalPath.c_str());
+        return true;
     }
-    else
-    {
-        // If doesn't have a component, assign a new one
-        auto newTex = std::make_shared<ComponentTexture>(target);
-        newTex->textureID = textureID;
-        newTex->path = file_path;
-        newTex->libraryPath = internalPath;
-        target->AddComponent(newTex);
-        LOG("Texture component ADDED to GameObject: %s", target->GetName().c_str());
-    }
-    LOG("Texture applied to %s (Internal: %s)", target->GetName().c_str(), internalPath.c_str());
-    return true;
-}
-return false;
+    return false;
 }
 
 void LoadFiles::ApplyTextureToAllChildren(std::shared_ptr<GameObject> go, unsigned int textureID, const char* path)
@@ -1066,4 +1093,43 @@ unsigned int LoadFiles::CreateTextureFromBuffer(const TextureHeader& header, con
     glBindTexture(GL_TEXTURE_2D, 0);
     LOG("Texture created in OpenGL (ID: %d) from buffer", textureID);
     return textureID;
+}
+
+void LoadFiles::AcquireResourceReferencesForGameObject(std::shared_ptr<GameObject> go, const char* assetPath)
+{
+    if (!go) return;
+
+    auto& rm = ResourceManager::GetInstance();
+
+    // Acquire reference for the mesh
+    ComponentMesh* mesh = go->GetComponent<ComponentMesh>();
+    if (mesh && !mesh->path.empty() && mesh->path == assetPath)
+    {
+        auto it = rm.assetPathToID.find(mesh->path);
+        if (it != rm.assetPathToID.end())
+        {
+            rm.AcquireResourceReference(it->second);
+            LOG("Acquired mesh reference: %s", mesh->path.c_str());
+        }
+    }
+
+    // Acquire reference for texture
+    ComponentTexture* texture = go->GetComponent<ComponentTexture>();
+    if (texture && !texture->path.empty() &&
+        texture->path != "default_checker" &&
+        !texture->useDefaultTexture)
+    {
+        auto it = rm.assetPathToID.find(texture->path);
+        if (it != rm.assetPathToID.end())
+        {
+            rm.AcquireResourceReference(it->second);
+            LOG("Acquired texture reference: %s", texture->path.c_str());
+        }
+    }
+
+    // Recursively for children
+    for (const auto& child : go->GetChildren())
+    {
+        AcquireResourceReferencesForGameObject(child, assetPath);
+    }
 }

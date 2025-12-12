@@ -20,8 +20,17 @@ void AssetWindow::Draw(bool* pOpen)
         return;
     }
 
+    static int frameCounter = 0;
+    frameCounter++;
+    if (frameCounter >= 100)
+    {
+        ResourceManager::GetInstance().UpdateReferenceCounts();
+        frameCounter = 0;
+    }
+
     ImGui::SetNextItemWidth(-1);
 
+    // Button: Refresh Assets
     if (ImGui::Button("Refresh Assets"))
     {
         ResourceManager::GetInstance().RefreshAssetTree();
@@ -29,6 +38,7 @@ void AssetWindow::Draw(bool* pOpen)
     }
     ImGui::SameLine();
 
+    // Button: Regenerate Library
     if (ImGui::Button("Regenerate Library"))
     {
         ResourceManager::GetInstance().RegenerateLibrary();
@@ -36,6 +46,15 @@ void AssetWindow::Draw(bool* pOpen)
     }
     ImGui::SameLine();
 
+    // Button: Update Reference Counts
+    if (ImGui::Button("Update References"))
+    {
+        ResourceManager::GetInstance().UpdateReferenceCounts();
+        LOG("Reference counts updated from scene");
+    }
+    ImGui::SameLine();
+
+    // Button: Show Stats
     if (ImGui::Button("Show Stats"))
     {
         ResourceManager::GetInstance().PrintResourceStats();
@@ -43,6 +62,7 @@ void AssetWindow::Draw(bool* pOpen)
 
     ImGui::Separator();
 
+    // Check for unprocessed assets
     int unprocessed = ResourceManager::GetInstance().CountUnprocessedAssets();
     if (unprocessed > 0)
     {
@@ -65,16 +85,19 @@ void AssetWindow::Draw(bool* pOpen)
 
     ImGui::Separator();
 
+    // Filters (for future implementation)
     ImGui::Checkbox("Meshes", &filterMeshes);
     ImGui::SameLine();
     ImGui::Checkbox("Textures", &filterTextures);
 
     ImGui::Separator();
 
+    // Drag & Drop target area
     DrawDragDropTarget();
 
     ImGui::Separator();
 
+    // Asset tree view
     if (ImGui::BeginChild("AssetTree", ImVec2(0, -100), true))
     {
         auto root = ResourceManager::GetInstance().GetAssetTree();
@@ -87,8 +110,10 @@ void AssetWindow::Draw(bool* pOpen)
 
     ImGui::Separator();
 
+    // Asset details panel
     DrawAssetDetails();
 
+    // Delete confirmation popup
     if (showDeleteConfirm)
     {
         ImGui::OpenPopup("Delete Confirmation");
@@ -102,6 +127,7 @@ void AssetWindow::Draw(bool* pOpen)
         ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.2f, 1.0f), "%s", deleteConfirmPath.c_str());
         ImGui::Spacing();
 
+        // Find reference count for this asset
         int refCount = 0;
         for (const auto& [id, info] : ResourceManager::GetInstance().GetAllResources())
         {
@@ -114,9 +140,11 @@ void AssetWindow::Draw(bool* pOpen)
 
         if (refCount > 0)
         {
+            // Asset is in use - cannot delete
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
             ImGui::Text("WARNING: This asset has %d active references!", refCount);
             ImGui::Text("Cannot delete while in use by GameObjects.");
+            ImGui::Text("Remove the asset from all GameObjects first.");
             ImGui::PopStyleColor();
 
             if (ImGui::Button("Cancel", ImVec2(120, 0)))
@@ -126,18 +154,21 @@ void AssetWindow::Draw(bool* pOpen)
         }
         else
         {
+            // Asset not in use - can delete
             ImGui::Text("This will delete:");
-            ImGui::BulletText("Asset file");
-            ImGui::BulletText("Library file");
+            ImGui::BulletText("Asset file in Assets/");
+            ImGui::BulletText("Processed file in Library/");
             ImGui::BulletText(".meta file");
             ImGui::Spacing();
 
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
             if (ImGui::Button("Delete", ImVec2(120, 0)))
             {
                 bool success = ResourceManager::GetInstance().DeleteAsset(deleteConfirmPath);
 
                 if (success)
                 {
+                    LOG("Asset deleted successfully: %s", deleteConfirmPath.c_str());
                     selectedPath = "";
                     selectedNode = nullptr;
                 }
@@ -148,6 +179,8 @@ void AssetWindow::Draw(bool* pOpen)
 
                 ImGui::CloseCurrentPopup();
             }
+            ImGui::PopStyleColor();
+
             ImGui::SetItemDefaultFocus();
             ImGui::SameLine();
 
@@ -167,19 +200,31 @@ void AssetWindow::DrawAssetTree(std::shared_ptr<AssetNode> node)
 {
     if (!node) return;
 
+    ImGui::PushID(node.get());
+
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
 
+    // Select current node
     if (node == selectedNode)
         flags |= ImGuiTreeNodeFlags_Selected;
 
+    // Leaf node (file)
     if (!node->isDirectory)
         flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
-    std::string icon = node->isDirectory ? "[DIR]" : "[FIL]";
+    // Icon for directory vs file
+    std::string icon = node->isDirectory ? "[DIR]" : "[FILE]";
+
+    // Show reference count for files
     std::string label = icon + " " + node->name;
+    if (!node->isDirectory && node->resourceInfo && node->resourceInfo->referenceCount > 0)
+    {
+        label += " (" + std::to_string(node->resourceInfo->referenceCount) + " refs)";
+    }
 
-    bool nodeOpen = ImGui::TreeNodeEx(node.get(), flags, "%s", label.c_str());
+    bool nodeOpen = ImGui::TreeNodeEx(label.c_str(), flags);
 
+    // Handle selection
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
     {
         selectedNode = node;
@@ -195,10 +240,16 @@ void AssetWindow::DrawAssetTree(std::shared_ptr<AssetNode> node)
             showDeleteConfirm = true;
         }
 
+        if (!node->isDirectory && ImGui::MenuItem("Reimport"))
+        {
+            ResourceManager::GetInstance().ForceProcessAsset(node->path);
+            LOG("Asset reimported: %s", node->path.c_str());
+        }
+
         ImGui::EndPopup();
     }
 
-    // Drag source
+    // Drag source (only for files)
     if (!node->isDirectory && ImGui::BeginDragDropSource())
     {
         std::string pathStr = node->path;
@@ -207,6 +258,7 @@ void AssetWindow::DrawAssetTree(std::shared_ptr<AssetNode> node)
         ImGui::EndDragDropSource();
     }
 
+    // Draw children if directory is open
     if (nodeOpen && node->isDirectory)
     {
         for (const auto& child : node->children)
@@ -215,6 +267,8 @@ void AssetWindow::DrawAssetTree(std::shared_ptr<AssetNode> node)
         }
         ImGui::TreePop();
     }
+
+    ImGui::PopID();
 }
 
 void AssetWindow::DrawAssetDetails()
@@ -239,17 +293,15 @@ void AssetWindow::DrawAssetDetails()
 
         // Processing status
         bool existsInLibrary = std::filesystem::exists(info.libraryPath);
+        ImGui::Text("Status: ");
+        ImGui::SameLine();
         if (existsInLibrary)
         {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.2f, 1.0f, 0.2f, 1.0f));
-            ImGui::Text("Status: PROCESSED");
-            ImGui::PopStyleColor();
+            ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.2f, 1.0f), "PROCESSED");
         }
         else
         {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.7f, 0.2f, 1.0f));
-            ImGui::Text("Status: NOT PROCESSED");
-            ImGui::PopStyleColor();
+            ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.2f, 1.0f), "NOT PROCESSED");
 
             if (ImGui::Button("Process Asset", ImVec2(150, 0)))
             {
@@ -271,6 +323,9 @@ void AssetWindow::DrawAssetDetails()
                 {
                     Application::GetInstance().scene->AddGameObject(gameObject);
                     LOG("FBX loaded to scene: %s", selectedPath.c_str());
+
+                    // Update reference counts
+                    ResourceManager::GetInstance().UpdateReferenceCounts();
                 }
                 else
                 {
@@ -308,10 +363,6 @@ void AssetWindow::DrawAssetDetails()
                 ImGui::SetTooltip("Cannot delete: Asset is in use (%d references)", info.referenceCount);
             }
         }
-
-        ImGui::SameLine();
-
-     
     }
 }
 
@@ -344,6 +395,14 @@ void AssetWindow::HandleDragDrop(const std::string& filePath)
     if (ResourceManager::GetInstance().ImportAsset(filePath))
     {
         LOG("Asset imported successfully");
+
+        // Process immediately if needed
+        int unprocessed = ResourceManager::GetInstance().CountUnprocessedAssets();
+        if (unprocessed > 0)
+        {
+            LOG("Processing newly imported asset...");
+            ResourceManager::GetInstance().ProcessUnprocessedAssets();
+        }
     }
     else
     {

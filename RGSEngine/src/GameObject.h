@@ -74,6 +74,9 @@ public:
     void Save(nlohmann::json& j);
     void Load(const nlohmann::json& j);
 
+    // Release all resource references (called on destruction)
+    void ReleaseResourceReferences();
+
 public:
     string name;
     bool active;

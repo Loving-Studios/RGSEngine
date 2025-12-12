@@ -26,6 +26,7 @@
 #include "ImGuizmo.h"
 #include "LoadFiles.h"
 #include "Time.h"
+#include "ResourceManager.h"
 
 #include <IL/il.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -651,11 +652,14 @@ void ModuleEditor::DrawMainMenuBar()
         ImGui::EndMenuBar();
     }
 }
+// Add this to ModuleEditor.cpp in the DrawHierarchyWindow() method
+// Replace the DELETE key handling section:
+
 void ModuleEditor::DrawHierarchyWindow()
 {
     if (!ImGui::Begin("Hierarchy", &showHierarchyWindow))
     {
-        // If i's closed, exit
+        // If it's closed, exit
         ImGui::End();
         return;
     }
@@ -664,7 +668,6 @@ void ModuleEditor::DrawHierarchyWindow()
     if (ImGui::Button("Create Empty"))
     {
         Application::GetInstance().scene->CreateEmptyGameObject();
-
     }
 
     // Delete GameOject
@@ -677,11 +680,19 @@ void ModuleEditor::DrawHierarchyWindow()
             LOG("Deleting GameObject: %s (UID: %llu)",
                 selectedGameObject->GetName().c_str(), selectedGameObject->uid);
 
+            // Release resources BEFORE removing from parent
+            selectedGameObject->ReleaseResourceReferences();
+
             // Inform the parent to delete the children selected
             selectedGameObject->GetParent()->RemoveChild(selectedGameObject);
 
             // Deselect the object
             selectedGameObject = nullptr;
+
+            // Update reference counts in ResourceManager
+            ResourceManager::GetInstance().UpdateReferenceCounts();
+
+            LOG("GameObject deleted and references updated");
         }
     }
 
@@ -727,10 +738,10 @@ void ModuleEditor::DrawHierarchyWindow()
         ImGui::EndDragDropTarget();
     }
 
-
     ImGui::End();
 }
 
+// Also update the context menu in DrawHierarchyNode:
 void ModuleEditor::DrawHierarchyNode(GameObject* go)
 {
     if (go == nullptr) return;
@@ -743,7 +754,6 @@ void ModuleEditor::DrawHierarchyNode(GameObject* go)
         // The checkbox is unique for this object
         ImGui::Checkbox("##active", &go->active);
         ImGui::SameLine();
-
     }
 
     // Save the node lead without childrens at the begining to be consistent later
@@ -821,7 +831,6 @@ void ModuleEditor::DrawHierarchyNode(GameObject* go)
         if (ImGui::MenuItem("Create Empty Child"))
         {
             // Create empty object
-
             auto child = std::make_shared<GameObject>("Empty Child");
             child->AddComponent(std::make_shared<ComponentTransform>(child.get()));
 
@@ -832,8 +841,20 @@ void ModuleEditor::DrawHierarchyNode(GameObject* go)
         if (ImGui::MenuItem("Delete"))
         {
             if (go->GetParent())
+            {
+                LOG("Context menu delete: %s", go->GetName().c_str());
+
+                // Release resources BEFORE removing
+                go->ReleaseResourceReferences();
+
                 go->GetParent()->RemoveChild(go);
-            if (selectedGameObject == go) selectedGameObject = nullptr;
+
+                // Update reference counts
+                ResourceManager::GetInstance().UpdateReferenceCounts();
+            }
+
+            if (selectedGameObject == go)
+                selectedGameObject = nullptr;
         }
 
         ImGui::EndPopup();

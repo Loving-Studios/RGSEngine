@@ -3,6 +3,7 @@
 #include "ComponentMesh.h"
 #include "ComponentTexture.h"
 #include "ComponentCamera.h"
+#include "ResourceManager.h"
 #include "Log.h"
 
 #include <algorithm>
@@ -16,7 +17,51 @@ GameObject::GameObject(string name)
 
 GameObject::~GameObject()
 {
-    // Cause we use the shared_ptr it cleans auto the components and the childens
+    LOG("GameObject destroyed: %s (UID: %llu)", name.c_str(), uid);
+
+   
+    ReleaseResourceReferences();
+
+}
+
+void GameObject::ReleaseResourceReferences()
+{
+    // Release mesh reference
+    ComponentMesh* mesh = GetComponent<ComponentMesh>();
+    if (mesh && !mesh->path.empty() && mesh->path.find("Primitive_") == std::string::npos)
+    {
+        auto& rm = ResourceManager::GetInstance();
+        auto it = rm.assetPathToID.find(mesh->path);
+        if (it != rm.assetPathToID.end())
+        {
+            rm.ReleaseResourceReference(it->second);
+            LOG("  Released mesh reference: %s", mesh->path.c_str());
+        }
+    }
+
+    // Release texture reference
+    ComponentTexture* texture = GetComponent<ComponentTexture>();
+    if (texture && !texture->path.empty() &&
+        texture->path != "default_checker" &&
+        !texture->useDefaultTexture)
+    {
+        auto& rm = ResourceManager::GetInstance();
+        auto it = rm.assetPathToID.find(texture->path);
+        if (it != rm.assetPathToID.end())
+        {
+            rm.ReleaseResourceReference(it->second);
+            LOG("  Released texture reference: %s", texture->path.c_str());
+        }
+    }
+
+    // Recursively release references from children
+    for (auto& child : children)
+    {
+        if (child)
+        {
+            child->ReleaseResourceReferences();
+        }
+    }
 }
 
 void GameObject::Update()
@@ -54,6 +99,8 @@ void GameObject::AddChild(shared_ptr<GameObject> child)
 void GameObject::RemoveChild(GameObject* child)
 {
     if (child == nullptr) return;
+
+    LOG("Removing child: %s from parent: %s", child->name.c_str(), name.c_str());
 
     // Search the shared_ptr matching with the pointer and delete
     children.erase(

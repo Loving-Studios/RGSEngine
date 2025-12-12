@@ -95,8 +95,10 @@ private:
         glm::vec3& minBounds, glm::vec3& maxBounds,
         const glm::mat4& parentTransform);
 
+    // Acquire resource references for GameObject and children (recursive)
+    void AcquireResourceReferencesForGameObject(std::shared_ptr<GameObject> go, const char* assetPath);
+
     aiLogStream stream;
 
     bool ImportTextureWithDevIL(const char* path, char*& buffer, TextureHeader& header);
-
 };
