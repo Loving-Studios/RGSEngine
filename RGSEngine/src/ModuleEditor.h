@@ -25,6 +25,7 @@ public:
 
     GameObject* GetSelectedGameObject() const { return selectedGameObject; }
 
+
 private:
     // Functions to draw the windows
     void DrawMainMenuBar();
@@ -79,4 +80,11 @@ private:
 
     bool showAssetWindow = true;
     bool showResourceStatsWindow = false;
+
+    bool showTimerWindow = false;
+    void DrawTimerWindow();
+
+    // Timer variables
+    float simulationElapsedTime = 0.0f;  
+    float simulationStartTime = 0.0f;    
 };

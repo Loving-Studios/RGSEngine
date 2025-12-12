@@ -229,6 +229,27 @@ bool ModuleEditor::Update(float dt)
     // Update stats of memory on each frame
     UpdateMemoryStats();
 
+    ModuleScene* scene = Application::GetInstance().scene.get();
+    ModuleScene::SimulationState state = scene->GetSimulationState();
+
+   
+    if (state == ModuleScene::SimulationState::PLAYING)
+    {
+        
+        if (simulationStartTime == 0.0f)
+        {
+            simulationStartTime = Time::realTimeSinceStartup;
+        }
+        
+        simulationElapsedTime = Time::realTimeSinceStartup - simulationStartTime;
+    }
+   
+    else if (state == ModuleScene::SimulationState::STOPPED)
+    {
+        simulationElapsedTime = 0.0f;
+        simulationStartTime = 0.0f;
+    }
+
     // --- FOCUS ON SELECTED GAMEOBJECT ---
     Input* input = Application::GetInstance().input.get();
 
@@ -369,6 +390,9 @@ bool ModuleEditor::Update(float dt)
     if (showTimeDebugWindow)
         DrawTimeDebugWindow();
 
+    if (showTimerWindow)
+        DrawTimerWindow();
+
     // Close the container window
     ImGui::End();
 
@@ -422,20 +446,15 @@ void ModuleEditor::DrawMainMenuBar()
         {
             if (ImGui::MenuItem("Save Scene"))
             {
-                // Open the windows dialog
                 std::string path = SaveFileDialog("JSON Files\0*.json\0All Files\0*.*\0");
-
-                // Valid path
                 if (!path.empty())
                 {
-                    // Save the scene in this path
                     Application::GetInstance().scene->SaveScene(path.c_str());
                 }
             }
 
             if (ImGui::MenuItem("Load Scene"))
             {
-                // Use the windows dialog to search the json file
                 std::string path = OpenFileDialog("JSON Files\0*.json\0All Files\0*.*\0");
                 if (!path.empty())
                 {
@@ -445,7 +464,6 @@ void ModuleEditor::DrawMainMenuBar()
             }
             ImGui::Separator();
 
-            // Exit option
             if (ImGui::MenuItem("Exit"))
             {
                 SDL_Event quit_event;
@@ -458,22 +476,20 @@ void ModuleEditor::DrawMainMenuBar()
         // --- View Menu ---
         if (ImGui::BeginMenu("View"))
         {
-            // Each window has toggles, checkboxes to be activated
             ImGui::MenuItem("Hierarchy", NULL, &showHierarchyWindow);
             ImGui::MenuItem("Inspector", NULL, &showInspectorWindow);
             ImGui::MenuItem("Configuration", NULL, &showConfigurationWindow);
             ImGui::MenuItem("Console", NULL, &showConsoleWindow);
             ImGui::MenuItem("Time Debug", NULL, &showTimeDebugWindow);
+            ImGui::MenuItem("Timer", NULL, &showTimerWindow);
 
             ImGui::Separator();
 
             ImGui::MenuItem("Assets", NULL, &showAssetWindow);
             ImGui::MenuItem("Resource Statistics", NULL, &showResourceStatsWindow);
 
-
             if (ImGui::MenuItem("Reset Layout"))
             {
-                // True applied so on the next frame, on the Update() we apply ApplyDefaultDockingLayout()
                 firstTimeLayout = true;
             }
 
@@ -613,10 +629,28 @@ void ModuleEditor::DrawMainMenuBar()
         ImGui::SameLine();
         ImGui::TextColored(stateColor, "%s", stateText);
 
+        // --- TIMER VISUAL ---
+        ImGui::SameLine();
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::SameLine();
+
+        // Calculate minutes, seconds, milliseconds usando simulationElapsedTime
+        int minutes = (int)(simulationElapsedTime / 60.0f);
+        int seconds = (int)(simulationElapsedTime) % 60;
+        int milliseconds = (int)((simulationElapsedTime - (int)simulationElapsedTime) * 1000.0f);
+
+        // Change color based on state
+        ImVec4 timerColor = ImVec4(0.8f, 0.8f, 0.8f, 1.0f); // Default gray
+        if (state == ModuleScene::SimulationState::PLAYING)
+            timerColor = ImVec4(0.2f, 1.0f, 0.2f, 1.0f); // Green
+        else if (state == ModuleScene::SimulationState::PAUSED)
+            timerColor = ImVec4(1.0f, 0.8f, 0.2f, 1.0f); // Yellow
+
+        ImGui::TextColored(timerColor, "Timer: %02d:%02d.%03d", minutes, seconds, milliseconds);
         ImGui::EndMenuBar();
     }
 }
-
 void ModuleEditor::DrawHierarchyWindow()
 {
     if (!ImGui::Begin("Hierarchy", &showHierarchyWindow))
@@ -1373,6 +1407,20 @@ void ModuleEditor::DrawTimeDebugWindow()
         return;
     }
 
+    // === TIMER VISUAL ===
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.2f, 1.0f, 0.2f, 1.0f));
+    ImGui::SetWindowFontScale(1.5f);
+
+    int minutes = (int)(Time::time / 60.0f);
+    int seconds = (int)(Time::time) % 60;
+    int milliseconds = (int)((Time::time - (int)Time::time) * 1000.0f);
+
+    ImGui::Text("TIMER: %02d:%02d.%03d", minutes, seconds, milliseconds);
+
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::PopStyleColor();
+    ImGui::Separator();
+
     ImGui::Text("GAME CLOCK");
     ImGui::Text("Time: %.3f s", Time::time);
     ImGui::Text("Delta Time: %.4f s (%.1f FPS)", Time::deltaTime, 1.0f / Time::deltaTime);
@@ -1426,6 +1474,73 @@ void ModuleEditor::DrawTimeDebugWindow()
     {
         ImGui::SetTooltip("Advance 1 frame while paused");
     }
+
+    ImGui::End();
+}
+
+void ModuleEditor::DrawTimerWindow()
+{
+    if (!ImGui::Begin("Timer", &showTimerWindow, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::End();
+        return;
+    }
+
+    ModuleScene* scene = Application::GetInstance().scene.get();
+    ModuleScene::SimulationState state = scene->GetSimulationState();
+
+    // Calculate time components usando simulationElapsedTime
+    int minutes = (int)(simulationElapsedTime / 60.0f);
+    int seconds = (int)(simulationElapsedTime) % 60;
+    int milliseconds = (int)((simulationElapsedTime - (int)simulationElapsedTime) * 1000.0f);
+
+    // Large timer display
+    ImVec4 timerColor = ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
+    if (state == ModuleScene::SimulationState::PLAYING)
+        timerColor = ImVec4(0.2f, 1.0f, 0.2f, 1.0f);
+    else if (state == ModuleScene::SimulationState::PAUSED)
+        timerColor = ImVec4(1.0f, 0.8f, 0.2f, 1.0f);
+
+    ImGui::PushStyleColor(ImGuiCol_Text, timerColor);
+
+    // Make font bigger
+    ImGui::SetWindowFontScale(2.5f);
+    ImGui::Text("%02d:%02d.%03d", minutes, seconds, milliseconds);
+    ImGui::SetWindowFontScale(1.0f);
+
+    ImGui::PopStyleColor();
+
+    ImGui::Separator();
+
+    // Control buttons
+    ImGui::Text("Controls:");
+
+    if (ImGui::Button("Play", ImVec2(80, 30)))
+        scene->Play();
+
+    ImGui::SameLine();
+
+    ImGui::BeginDisabled(state != ModuleScene::SimulationState::PLAYING);
+    if (ImGui::Button("Pause", ImVec2(80, 30)))
+        scene->Pause();
+    ImGui::EndDisabled();
+
+    ImGui::SameLine();
+
+    ImGui::BeginDisabled(state == ModuleScene::SimulationState::STOPPED);
+    if (ImGui::Button("Stop", ImVec2(80, 30)))
+        scene->Stop();
+    ImGui::EndDisabled();
+
+    ImGui::Separator();
+
+    // Additional info
+    ImGui::Text("State: %s",
+        state == ModuleScene::SimulationState::PLAYING ? "PLAYING" :
+        state == ModuleScene::SimulationState::PAUSED ? "PAUSED" : "STOPPED");
+
+    ImGui::Text("Time Scale: %.2fx", Time::timeScale);
+    ImGui::Text("Frame: %llu", Time::frameCount);
 
     ImGui::End();
 }
