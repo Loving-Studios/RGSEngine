@@ -549,13 +549,15 @@ void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 			if (drawFaceNormals)   mesh->DrawFaceNormals();
 		}
 
+		bool isCullingVisActive = enableFrustumCulling && visualizeFrustumCulling;
+
 		// Draw AABB if enabled (but not if frustum visualization is on)
-		if (drawAABBs && !visualizeFrustumCulling)
+		if (drawAABBs && !isCullingVisActive)
 		{
 			DrawAABBWithColor(mesh, globalTransform, colorNormal);
 		}
 
-		if (selectedObject == go && mesh->aabbVAO != 0 && !visualizeFrustumCulling)
+		if (selectedObject == go && mesh->aabbVAO != 0 && !isCullingVisActive)
 		{
 			// Save line status
 			GLfloat oldLineWidth;
