@@ -1,6 +1,6 @@
 # RGSEngine v2.0
 
-**RGSEngine** is a 3D game engine, the goal of this second release is to get rid of our dependence on FBX to run our games, organize resources in a consistent way, and introduce several optimizations and tools in the graphics / editor pipeline such as frustum culling, octree acceleration structures, custom asset formats, scene serialization, and a full resource management workflow.
+**RGSEngine** is a 3D game engine, the goal of this second release is to get rid of our dependence on FBX to run our games, organize resources in a consistent way, and introduce several optimizations and tools in the engine such as frustum culling, octree acceleration structures, custom asset formats, scene serialization, and a full resource management workflow.
 
 ## 📎 Repository Link
 
@@ -71,22 +71,23 @@ Displays detailed information and allows real-time editing of the selected `Game
 * **Visual Manipulation (ImGuizmo):** Selecting an object activates the **ImGuizmo** overlay in the scene view. You can switch between **Translate (W)**, **Rotate (E)**, and **Scale (R)** modes, as well as toggle between **Local** and **World** space coordinates using the UI toggles or hotkeys.
 
 ### **Mesh Component**
-* **Native File Explorer:** Clicking "Select Mesh..." opens the **Windows Native File Explorer**, allowing you to browse your disk and load any `.fbx` file directly into the mesh component.
-* **Drag & Drop Assignment:** You can drag a mesh file from the Assets window directly into this slot.
-* **Normals Debug:** Includes checkboxes to visualize **Vertex Normals** and **Face Normals** in the scene view for debugging shading issues.
-* **Metadata:** Displays internal resource paths (`.rgs`), VRAM buffer IDs (VAO/VBO/IBO), and total index count.
+* **Native File Explorer:** Clicking `Select Mesh...` opens the **Windows Native File Explorer**, allowing you to browse your disk and load any `.fbx` or `.rgs` file directly at runtime into the mesh component.
+* **Mesh Loading:** You can add a mesh file from the **Assets window** directly by clicking `Load to Scene`.
+* **Geometry Visualization:** Includes checkboxes to visualize **Vertex Normals**, **Face Normals** and **Axis-Aligned Bounding Boxes (AABB)** in the scene view.
+* **Metadata:** Displays internal resource paths `.rgs`, GPU buffer IDs (VAO/VBO/IBO).
 
 ### **Texture Component**
-* **Material Color:** Real-time modification of the material's base diffuse color. This value acts as a tint when a texture is applied or defines the solid material color when no texture is present.
-* **Native File Explorer:** Clicking "Select Texture..." opens the **Windows Native File Explorer** to load `.png`, `.jpg`, `.dds`, or `.tga` files.
+* **Material Color:** Real-time modification of the material's base diffuse color. This value acts as a tint when a texture is applied or defines the solid material color when no texture is present.
+* **Native File Explorer:** Clicking `Select Texture...` opens the **Windows Native File Explorer** to load `.png`, `.jpg`, `.dds`, or `.tga` files and loading optimized custom engine textures `.rgst` directly at runtime.
 * **Transparency & Blending:**
     * **Alpha Test:** Toggle support for cutout transparency (ideal for foliage or grates) with an adjustable **Alpha Threshold** slider.
     * **Blending:** Toggle support for semi-transparent surfaces (glass, water). Includes selectable **Source** and **Destination** blend factors (Standard, Additive, Multiplicative).
 * **Default Checker:** One-click switch to the internal checkerboard pattern for UV debugging. Automatically forces a white tint for accurate pattern visualization and restores the previous material state upon deactivation.
-* **Metadata:** Shows texture dimensions, format, and OpenGL Texture ID.
+* **Metadata:** Shows texture dimensions, format, internal library path and OpenGL Texture ID.
 
 ### **Camera Component**
-* *Note: This section is visible only if the selected object has a Camera Component.*
+*Note: This section is visible only if the selected object has a Camera Component.*
+
 * **Frustum Visualization:** Modifying these values updates the visual frustum lines in the scene in real-time.
 * **Field of View (FOV):** Slider to adjust the vertical FOV (1.0 to 179.0 degrees).
 * **Clipping Planes:** Sliders to adjust the **Near** and **Far** clipping planes.
@@ -124,7 +125,7 @@ A dedicated explorer for browsing and managing assets inside the `/Assets` folde
 
 ### Features:
 - **Tree-like folder browser:** Visualizes the directory structure of your project.
-- **Drag & drop import:** Supports dragging files directly from Windows Explorer into the engine.
+- **Drag & drop import:** Supports dragging files directly from **Windows Explorer** into the engine.
 - **Smart Deletion:** Deleting an asset from the editor automatically removes the associated metadata and the processed binary files in `/Library`.
 - **Automatic Refresh:** The engine detects changes and updates the file tree dynamically.
 - **Asset Metadata Display:**

@@ -1033,7 +1033,7 @@ void ModuleEditor::DrawInspectorWindow()
                 ImGui::Separator();
                 if (ImGui::Button("Select Mesh..."))
                 {
-                    std::string path = OpenFileDialog("FBX Files\0*.fbx\0All Files\0*.*\0");
+                    std::string path = OpenFileDialog("Mesh Files\0*.fbx;*.rgs\0FBX Files\0*.fbx\0Custom Mesh (*.rgs)\0*.rgs\0All Files\0*.*\0");
                     if (!path.empty())
                     {
                         Application::GetInstance().loadFiles->LoadMeshFromFile(path.c_str(), selectedGameObject);
@@ -1109,7 +1109,7 @@ void ModuleEditor::DrawInspectorWindow()
                 ImGui::SameLine();
                 if (ImGui::Button("Select Texture..."))
                 {
-                    std::string path = OpenFileDialog("Image Files\0*.png;*.jpg;*.dds;*.jpeg\0All Files\0*.*\0");
+                    std::string path = OpenFileDialog("Texture Files\0*.png;*.jpg;*.dds;*.jpeg;*.tga;*.rgst\0Image Files\0*.png;*.jpg;*.dds;*.jpeg;*.tga\0Custom Texture (*.rgst)\0*.rgst\0All Files\0*.*\0");
                     if (!path.empty())
                     {
                         Application::GetInstance().loadFiles->LoadTexture(path.c_str(), selectedGameObject);

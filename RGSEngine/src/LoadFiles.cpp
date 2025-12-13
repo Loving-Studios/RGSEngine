@@ -822,39 +822,63 @@ bool LoadFiles::LoadMeshFromFile(const char* file_path, GameObject* target)
         return false;
     }
 
-    const aiScene* scene = aiImportFile(file_path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenNormals | aiProcess_JoinIdenticalVertices | aiProcess_CalcTangentSpace);
-
-    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode || scene->mNumMeshes == 0)
-    {
-        LOG("Error loading mesh: %s", aiGetErrorString());
-        return false;
-    }
-
-    // Get the first mesh from the file
-    aiMesh* aiMesh = scene->mMeshes[0];
+    std::string path(file_path);
+    std::string extension = path.substr(path.find_last_of(".") + 1);
+    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
 
     MeshData meshData;
-    // Reuse your ProcessMesh function
-    ProcessMesh(aiMesh, meshData);
+    bool success = false;
 
-    currentMesh->path = file_path;
-    currentMesh->libraryPath = meshData.libraryPath;
+    if (extension == "rgs")
+    {
+        LOG("Loading custom mesh format directly: %s", file_path);
+        if (LoadMeshFromCustomFormat(file_path, meshData))
+        {
+            meshData.libraryPath = file_path;
+            success = true;
+        }
+    }
+    else
+    {
+        const aiScene* scene = aiImportFile(file_path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenNormals | aiProcess_JoinIdenticalVertices | aiProcess_CalcTangentSpace);
 
-    // Load the data into the existing component, clearing the previous one
-    currentMesh->LoadMesh(meshData.vertices, meshData.num_vertices,
-        meshData.indices, meshData.num_indices,
-        meshData.texCoords, meshData.normals);
+        if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode || scene->mNumMeshes == 0)
+        {
+            LOG("Error loading mesh: %s", aiGetErrorString());
+            return false;
+        }
 
-    // CleanUp
-    delete[] meshData.vertices;
-    delete[] meshData.indices;
-    if (meshData.texCoords) delete[] meshData.texCoords;
-    if (meshData.normals) delete[] meshData.normals;
-    if (meshData.colors) delete[] meshData.colors;
+        // Get the first mesh from the file
+        aiMesh* aiMesh = scene->mMeshes[0];
+        // Fill meshData and save the .rgs in Library
+        ProcessMesh(aiMesh, meshData);
 
-    aiReleaseImport(scene);
-    LOG("Mesh replaced from: %s", file_path);
-    return true;
+        aiReleaseImport(scene);
+        success = true;
+    }
+
+    if (success)
+    {
+        currentMesh->path = file_path;
+        currentMesh->libraryPath = meshData.libraryPath;
+
+        // Load the data into the existing component, clearing the previous one
+        currentMesh->LoadMesh(meshData.vertices, meshData.num_vertices,
+            meshData.indices, meshData.num_indices,
+            meshData.texCoords, meshData.normals);
+
+        // CleanUp RAM
+        delete[] meshData.vertices;
+        delete[] meshData.indices;
+        if (meshData.texCoords) delete[] meshData.texCoords;
+        if (meshData.normals) delete[] meshData.normals;
+        if (meshData.colors) delete[] meshData.colors;
+
+        LOG("Mesh loaded successfully on GameObject: %s", target->GetName().c_str());
+        return true;
+    }
+
+    return false;
 }
 
 bool LoadFiles::SaveMeshToCustomFormat(const char* path, const MeshData& meshData)
@@ -968,18 +992,36 @@ bool LoadFiles::LoadMeshFromCustomFormat(const char* path, MeshData& meshData)
 
 unsigned int LoadFiles::LoadTexture(const char* file_path)
 {
-    // Generate the destination path in Library
-    std::string pathString(file_path);
-    std::string filename = pathString.substr(pathString.find_last_of("/\\") + 1);
-
-    // Remove the original extension and replace it with our own .rgst
-    size_t lastDot = filename.find_last_of(".");
-    if (lastDot != std::string::npos) filename = filename.substr(0, lastDot);
-    std::string libraryPath = "Library/Textures/" + filename + ".rgst";
+    std::string path(file_path);
+    std::string extension = path.substr(path.find_last_of(".") + 1);
+    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
 
     TextureHeader header;
     char* buffer = nullptr;
     unsigned int textureID = 0;
+
+    if (extension == "rgst")
+    {
+        LOG("Loading custom texture format directly: %s", file_path);
+        if (LoadTextureFromCustomFormat(file_path, header, buffer))
+        {
+            textureID = CreateTextureFromBuffer(header, buffer);
+            delete[] buffer;
+            return textureID;
+        }
+        else
+        {
+            LOG("Error loading custom texture file.");
+            return 0;
+        }
+    }
+
+    // Generate the destination path in Library
+    std::string filename = path.substr(path.find_last_of("/\\") + 1);
+    // Remove the original extension and replace it with our own .rgst
+    size_t lastDot = filename.find_last_of(".");
+    if (lastDot != std::string::npos) filename = filename.substr(0, lastDot);
+    std::string libraryPath = "Library/Textures/" + filename + ".rgst";
 
     // Check if it already exists in Library
     std::ifstream f(libraryPath.c_str());
