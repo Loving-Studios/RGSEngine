@@ -505,13 +505,23 @@ void LoadFiles::LoadMaterialTextures(const aiScene* scene, aiMesh* mesh, std::sh
             LOG("Material name: %s", materialName.C_Str());
         }
 
-        // Count textures of each type
-        int diffuseCount = material->GetTextureCount(aiTextureType_DIFFUSE);
-        int specularCount = material->GetTextureCount(aiTextureType_SPECULAR);
-        int normalCount = material->GetTextureCount(aiTextureType_NORMALS);
+        // Obtain the diffuse color
+        aiColor4D diffColor(1.0f, 1.0f, 1.0f, 1.0f);
+        if (AI_SUCCESS == material->Get(AI_MATKEY_COLOR_DIFFUSE, diffColor))
+        {
+            LOG("Material has diffuse color: (%.2f, %.2f, %.2f)", diffColor.r, diffColor.g, diffColor.b);
+        }
 
-        LOG("Texture counts - Diffuse: %d, Specular: %d, Normal: %d",
-            diffuseCount, specularCount, normalCount);
+        // Create the component color so always its saved
+        auto texComponent = std::make_shared<ComponentTexture>(gameObject.get());
+        texComponent->color = glm::vec4(diffColor.r, diffColor.g, diffColor.b, diffColor.a);
+
+        // Count textures
+        int diffuseCount = material->GetTextureCount(aiTextureType_DIFFUSE);
+        LOG("Texture counts - Diffuse: %d", diffuseCount);
+
+        unsigned int textureID = 0;
+        std::string loadedPath = "";
 
         // Search for diffuse texture
         if (diffuseCount > 0)
@@ -541,9 +551,6 @@ void LoadFiles::LoadMaterialTextures(const aiScene* scene, aiMesh* mesh, std::sh
                     possiblePaths.push_back(fbxDirectory + fileName);
                 }
 
-                unsigned int textureID = 0;
-                std::string loadedPath;
-
                 LOG("Trying to load texture from possible paths:");
                 for (const auto& path : possiblePaths)
                 {
@@ -556,30 +563,33 @@ void LoadFiles::LoadMaterialTextures(const aiScene* scene, aiMesh* mesh, std::sh
                         break;
                     }
                 }
-
-                if (textureID != 0)
-                {
-                    auto texComponent = std::make_shared<ComponentTexture>(gameObject.get());
-                    texComponent->textureID = textureID;
-                    texComponent->path = loadedPath;
-
-                    std::string pathString(loadedPath);
-                    std::string filename = pathString.substr(pathString.find_last_of("/\\") + 1);
-                    size_t lastDot = filename.find_last_of(".");
-                    if (lastDot != std::string::npos) filename = filename.substr(0, lastDot);
-
-                    texComponent->libraryPath = "Library/Textures/" + filename + ".rgst";
-
-                    gameObject->AddComponent(texComponent);
-
-                    LOG("TEXTURE LOADED AND APPLIED: %s (OpenGL ID: %d)",
-                        loadedPath.c_str(), textureID);
-                }
-                else{ LOG("FAILED TO LOAD TEXTURE - Will use default checkers"); }
             }
             else{ LOG("Failed to get texture path from material"); }
         }
         else{ LOG("Material has NO diffuse texture"); }
+
+        if (textureID != 0)
+        {
+            texComponent->textureID = textureID;
+            texComponent->path = loadedPath;
+
+            std::string pathString(loadedPath);
+            std::string filename = pathString.substr(pathString.find_last_of("/\\") + 1);
+            size_t lastDot = filename.find_last_of(".");
+            if (lastDot != std::string::npos) filename = filename.substr(0, lastDot);
+
+            texComponent->libraryPath = "Library/Textures/" + filename + ".rgst";
+
+            LOG("TEXTURE LOADED AND APPLIED: %s (OpenGL ID: %d)", loadedPath.c_str(), textureID);
+        }
+        else
+        {
+            // Render uses the color, not the checkeredTexture
+            texComponent->textureID = 0;
+            LOG("NO TEXTURE LOADED - Will use material color (%.2f, %.2f, %.2f)", diffColor.r, diffColor.g, diffColor.b);
+        }
+
+        gameObject->AddComponent(texComponent);
     }
     else{ LOG("Mesh has no material assigned"); }
 }

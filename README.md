@@ -77,11 +77,12 @@ Displays detailed information and allows real-time editing of the selected `Game
 * **Metadata:** Displays internal resource paths (`.rgs`), VRAM buffer IDs (VAO/VBO/IBO), and total index count.
 
 ### **Texture Component**
+* **Material Color:** Real-time modification of the material's base diffuse color. This value acts as a tint when a texture is applied or defines the solid material color when no texture is present.
 * **Native File Explorer:** Clicking "Select Texture..." opens the **Windows Native File Explorer** to load `.png`, `.jpg`, `.dds`, or `.tga` files.
 * **Transparency & Blending:**
-    * **Alpha Test:** Toggle support for cutout transparency (e.g., foliage) with an adjustable **Alpha Threshold** slider.
-    * **Blending:** Toggle support for semi-transparent surfaces (e.g., glass). Includes selectable **Source** and **Destination** blend factors (e.g., `GL_SRC_ALPHA`, `GL_ONE_MINUS_SRC_ALPHA`).
-* **Default Checker:** A toggle to revert to the internal debug checkerboard pattern if a texture is missing.
+    * **Alpha Test:** Toggle support for cutout transparency (ideal for foliage or grates) with an adjustable **Alpha Threshold** slider.
+    * **Blending:** Toggle support for semi-transparent surfaces (glass, water). Includes selectable **Source** and **Destination** blend factors (Standard, Additive, Multiplicative).
+* **Default Checker:** One-click switch to the internal checkerboard pattern for UV debugging. Automatically forces a white tint for accurate pattern visualization and restores the previous material state upon deactivation.
 * **Metadata:** Shows texture dimensions, format, and OpenGL Texture ID.
 
 ### **Camera Component**

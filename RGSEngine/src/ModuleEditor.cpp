@@ -1063,31 +1063,39 @@ void ModuleEditor::DrawInspectorWindow()
             ComponentTexture* texture = static_cast<ComponentTexture*>(component.get());
             if (ImGui::CollapsingHeader("Texture", ImGuiTreeNodeFlags_DefaultOpen))
             {
+                ImGui::Text("Material Color");
+                ImGui::ColorEdit4("##tintColor", (float*)&texture->color);
+                ImGui::Separator();
+
                 bool useDefault = texture->useDefaultTexture;
                 if (ImGui::Checkbox("Use Default Checkered Texture", &useDefault))
                 {
                     texture->useDefaultTexture = useDefault;
                     if (useDefault)
                     {
-                        if (texture->originalTextureID == 0)
+                        // SAve the older state if its not yet in default mode
+                        if (texture->path != "default_checker")
                         {
                             texture->originalTextureID = texture->textureID;
                             texture->originalPath = texture->path;
+                            texture->originalColor = texture->color;
                         }
 
                         unsigned int defaultTexID = Application::GetInstance().render->defaultCheckerTexture;
                         texture->textureID = defaultTexID;
                         texture->path = "default_checker";
+
+                        texture->color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
                     }
                     else
                     {
-                        if (texture->originalTextureID != 0)
-                        {
-                            texture->textureID = texture->originalTextureID;
-                            texture->path = texture->originalPath;
-                            texture->originalTextureID = 0;
-                            texture->originalPath = "";
-                        }
+                        // Restore original state of the color and texture
+                        texture->textureID = texture->originalTextureID;
+                        texture->path = texture->originalPath;
+                        texture->color = texture->originalColor;
+
+                        texture->originalTextureID = 0;
+                        texture->originalPath = "";
                     }
                 }
 

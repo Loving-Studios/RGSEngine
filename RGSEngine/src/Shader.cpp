@@ -29,23 +29,35 @@ namespace DefaultShaders
     out vec4 FragColor;
 
     in vec2 TexCoord; 
+    
+    // Uniforms
     uniform sampler2D tex1; 
     
-    // --- NUEVOS UNIFORMS ---
+    uniform bool useTexture;
+    uniform vec4 materialColor;
+    
     uniform bool enableAlphaTest;
     uniform float alphaThreshold;
-    // -----------------------
 
     void main()
     {
-        vec4 texColor = texture(tex1, TexCoord);
+        vec4 resultColor;
 
-        // --- LÓGICA ALPHA TEST ---
-        if(enableAlphaTest && texColor.a < alphaThreshold)
-            discard; // Descartamos el píxel si es muy transparente
-        // -------------------------
+        if (useTexture)
+        {
+            resultColor = texture(tex1, TexCoord) * materialColor;
+        }
+        else
+        {
+            // If there is any texture, use the color of the fbx
+            resultColor = materialColor;
+        }
 
-        FragColor = texColor; 
+        // Alpha Test
+        if(enableAlphaTest && resultColor.a < alphaThreshold)
+            discard;
+
+        FragColor = resultColor; 
     }
     )";
 }
@@ -100,6 +112,16 @@ void Shader::SetInt(const std::string& name, int value) const
 void Shader::SetFloat(const std::string& name, float value) const
 {
     glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
+}
+
+void Shader::SetVec3(const std::string& name, const glm::vec3& value) const
+{
+    glUniform3fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
+}
+
+void Shader::SetVec4(const std::string& name, const glm::vec4& value) const
+{
+    glUniform4fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
 }
 
 void Shader::SetMat4(const std::string& name, const glm::mat4& mat) const

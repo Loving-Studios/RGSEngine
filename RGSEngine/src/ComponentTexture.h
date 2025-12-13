@@ -5,6 +5,7 @@
 #include "LoadFiles.h"
 #include <glad/glad.h>
 #include <string>
+#include <glm/glm.hpp>
 
 class ComponentTexture : public Component
 {
@@ -12,7 +13,9 @@ public:
     ComponentTexture(GameObject* owner)
         : Component(owner, ComponentType::TEXTURE),
         textureID(0), width(0), height(0),
-        useDefaultTexture(false), originalTextureID(0)
+        useDefaultTexture(false), originalTextureID(0),
+        color(1.0f, 1.0f, 1.0f, 1.0f),
+        originalColor(1.0f, 1.0f, 1.0f, 1.0f)
     {
     }
 
@@ -50,6 +53,7 @@ public:
         j["Type"] = "TEXTURE";
         j["Path"] = path;
         j["LibraryPath"] = libraryPath;
+        j["Color"] = { color.r, color.g, color.b, color.a };
     }
 
     void Load(const nlohmann::json& j) override
@@ -68,6 +72,10 @@ public:
                 delete[] buffer;
             }
         }
+        if (j.contains("Color")) {
+            auto c = j["Color"];
+            color = glm::vec4(c[0], c[1], c[2], c[3]);
+        }
     }
 
 public:
@@ -80,6 +88,8 @@ public:
     bool useDefaultTexture;
     unsigned int originalTextureID;
     std::string originalPath;
+    glm::vec4 originalColor;
+    glm::vec4 color;
 
     // Alpha Test
     bool enableAlphaTest = false;

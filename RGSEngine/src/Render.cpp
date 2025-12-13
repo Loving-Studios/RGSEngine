@@ -421,9 +421,18 @@ void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 		float alphaCutoff = 0.0f;
 		bool blending = false;
 
+		bool useTexture = false;
+		glm::vec4 matColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.0f); // Grey color by dafault in case there is no componenttexture
+
 		if (texture != nullptr)
 		{
-			texture->Bind();
+			matColor = texture->color;
+			
+			if (texture->textureID != 0)
+			{
+				useTexture = true;
+				texture->Bind();
+			}
 
 			alphaTest = texture->enableAlphaTest;
 			alphaCutoff = texture->alphaThreshold;
@@ -438,20 +447,13 @@ void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 				glDisable(GL_BLEND);
 			}
 		}
-		else
-		{
-			// Use default checker texture
-			glBindTexture(GL_TEXTURE_2D, defaultCheckerTexture);
-			glDisable(GL_BLEND);
-		}
 
-		// Send Uniforms of Alpha Test to the shader
+		shader->SetBool("useTexture", useTexture);
+		shader->SetVec4("materialColor", matColor);
 		shader->SetBool("enableAlphaTest", alphaTest);
 		shader->SetFloat("alphaThreshold", alphaCutoff);
-
 		shader->SetInt("tex1", 0);
 
-		// Draw the mesh
 		mesh->Draw();
 
 		// Unlink the texture
@@ -590,8 +592,8 @@ void Render::CreateDefaultCheckerTexture()
 		for (int x = 0; x < texWidth; x++) {
 			int i = (y * texWidth + x) * 4;
 
-			// 8x8 pixel squares
-			bool isBlack = (((x / 8) % 2) == 0) != (((y / 8) % 2) == 0);
+			int checkerSize = 4; // 4 x 4
+			bool isBlack = (((x / checkerSize) % 2) == 0) != (((y / checkerSize) % 2) == 0);
 
 			GLubyte color = isBlack ? 50 : 200;
 			checkerTexture[i + 0] = color;
