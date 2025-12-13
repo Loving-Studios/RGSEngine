@@ -392,6 +392,7 @@ bool ModuleEditor::Update(float dt)
         {
             // If is moved, update the transform of the object
             selectedGameObject->SetLocalFromGlobal(modelMatrix);
+            selectedGameObject->UpdateAABBRecursive();
         }
     }
 
@@ -984,20 +985,32 @@ void ModuleEditor::DrawInspectorWindow()
             ComponentTransform* transform = static_cast<ComponentTransform*>(component.get());
             if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
             {
+                bool changed = false;
                 if (ImGui::DragFloat3("Position", (float*)&transform->position, 0.1f))
                 {
+                    changed = true;
                 }
 
                 glm::vec3 eulerAngles = glm::degrees(glm::eulerAngles(transform->rotation));
                 if (ImGui::DragFloat3("Rotation", (float*)&eulerAngles, 1.0f))
                 {
                     transform->SetRotation(glm::quat(glm::radians(eulerAngles)));
+                    changed = true;
                 }
 
                 if (ImGui::DragFloat3("Scale", (float*)&transform->scale, 0.1f))
                 {
+                    changed = true;
                 }
+
+                // If the user tapped on any value, we update the boxes.
+                if (changed)
+                {
+                    selectedGameObject->UpdateAABBRecursive();
+                }
+
             }
+
             break;
         }
 

@@ -78,6 +78,8 @@ public:
 
     // Update AABB (called from Update())
     void UpdateAABB();
+    // Update AABB and children's AABB (for the Editor)
+    void UpdateAABBRecursive();
 
     // --- Getters and Setters ---
     const string& GetName() const;

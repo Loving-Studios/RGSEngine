@@ -131,6 +131,15 @@ void GameObject::UpdateAABB()
     }
 }
 
+void GameObject::UpdateAABBRecursive()
+{
+    UpdateAABB(); // Update AABB
+
+    for (const auto& child : children)
+    {
+        child->UpdateAABBRecursive(); // Update the children
+    }
+}
 
 void GameObject::AddComponent(shared_ptr<Component> component)
 {
