@@ -9,10 +9,14 @@
 #include <algorithm>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
+#include <cfloat>
 
 GameObject::GameObject(string name)
     : name(name), parent(nullptr), active(true), uid(UIDGenerator::GenerateUID())
 {
+    localAABB.minPoint = glm::vec3(0.0f);
+    localAABB.maxPoint = glm::vec3(0.0f);
+    globalAABB = localAABB;
 }
 
 GameObject::~GameObject()
@@ -76,11 +80,57 @@ void GameObject::Update()
         }
     }
 
+    UpdateAABB();
+
     for (auto& child : children)
     {
         child->Update();
     }
 }
+
+void GameObject::UpdateAABB()
+{
+    // Obtain the global array of the object
+    glm::mat4 globalTransform = GetGlobalMatrix();
+
+    // Los 8 vértices del AABB local
+    glm::vec3 min = localAABB.minPoint;
+    glm::vec3 max = localAABB.maxPoint;
+
+    // If the AABB has not been initialised (mesh not loaded), exit
+    if (min == glm::vec3(FLT_MAX) || (min == glm::vec3(0.0f) && max == glm::vec3(0.0f)))
+    {
+        globalAABB.minPoint = glm::vec3(0.0f);
+        globalAABB.maxPoint = glm::vec3(0.0f);
+        return;
+    }
+
+    glm::vec3 corners[8] = {
+        glm::vec3(min.x, min.y, min.z),
+        glm::vec3(max.x, min.y, min.z),
+        glm::vec3(min.x, max.y, min.z),
+        glm::vec3(max.x, max.y, min.z),
+        glm::vec3(min.x, min.y, max.z),
+        glm::vec3(max.x, min.y, max.z),
+        glm::vec3(min.x, max.y, max.z),
+        glm::vec3(max.x, max.y, max.z)
+    };
+
+    // Reset the global AABB
+    globalAABB.minPoint = glm::vec3(FLT_MAX);
+    globalAABB.maxPoint = glm::vec3(-FLT_MAX);
+
+    // Transform each corner and expand the global AABB
+    for (int i = 0; i < 8; ++i)
+    {
+        glm::vec4 transformed = globalTransform * glm::vec4(corners[i], 1.0f);
+        glm::vec3 newPos = glm::vec3(transformed);
+
+        globalAABB.minPoint = glm::min(globalAABB.minPoint, newPos);
+        globalAABB.maxPoint = glm::max(globalAABB.maxPoint, newPos);
+    }
+}
+
 
 void GameObject::AddComponent(shared_ptr<Component> component)
 {

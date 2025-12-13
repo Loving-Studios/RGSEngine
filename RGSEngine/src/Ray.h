@@ -5,6 +5,7 @@
 #include "GameObject.h"
 #include "ComponentMesh.h"
 #include "ComponentTransform.h"
+#include "Log.h"
 
 struct AABB;
 class GameObject;
@@ -170,10 +171,16 @@ namespace Raycast
         float& outDistance)
     {
         if (mesh == nullptr || mesh->cpuVertices.empty() || mesh->cpuIndices.empty())
+        {
+            LOG("Mesh NULL or empty data");
             return false;
+        }
+
+        LOG("Testing mesh with %d triangles", mesh->cpuIndices.size() / 3);
 
         bool hit = false;
         float closestT = std::numeric_limits<float>::max();
+        int hitTriangleIndex = -1;
 
         // Iterar por todos los triángulos
         for (size_t i = 0; i < mesh->cpuIndices.size(); i += 3)
@@ -213,6 +220,7 @@ namespace Raycast
                 {
                     closestT = t;
                     hit = true;
+                    hitTriangleIndex = i / 3;
                 }
             }
         }
@@ -220,9 +228,10 @@ namespace Raycast
         if (hit)
         {
             outDistance = closestT;
+            LOG("HIT! Triangle %d, distance %.2f", hitTriangleIndex, closestT);
             return true;
         }
-
+        LOG("No triangle hit");
         return false;
     }
 
@@ -235,14 +244,23 @@ namespace Raycast
         if (go == nullptr || !go->IsActive())
             return;
 
+        LOG("Testing object: %s", go->GetName().c_str());
+
         // Test intersection with the AABB of this object
         float tMinAABB = 0.0f;
         bool hitAABB = RayAABBIntersection(ray, go->globalAABB, tMinAABB);
+
+        LOG("   AABB: Min(%.2f,%.2f,%.2f) Max(%.2f,%.2f,%.2f) Hit=%s",
+            go->globalAABB.minPoint.x, go->globalAABB.minPoint.y, go->globalAABB.minPoint.z,
+            go->globalAABB.maxPoint.x, go->globalAABB.maxPoint.y, go->globalAABB.maxPoint.z,
+            hitAABB ? "YES" : "NO");
+
         if (hitAABB)
         {
             ComponentMesh* mesh = go->GetComponent<ComponentMesh>();
             if (mesh != nullptr)
             {
+                LOG("   Has mesh, testing triangles...");
                 // If the AABB is farther away than the closest object found 
                 if (tMinAABB < closestDistance)
                 {
@@ -257,9 +275,13 @@ namespace Raycast
                         {
                             closestDistance = meshDistance;
                             closestObject = go;
+                            LOG("NEW CLOSEST: %s (dist %.2f)", go->GetName().c_str(), meshDistance);
                         }
                     }
                 }
+            }
+            else {
+                LOG("   No mesh component");
             }
         }
 
@@ -275,12 +297,19 @@ namespace Raycast
         GameObject* root,
         float& outDistance)
     {
+        LOG("========== STARTING PICKING ==========");
         GameObject* closestObject = nullptr;
         float closestDistance = std::numeric_limits<float>::max();
 
         FindIntersectionsRecursive(ray, root, closestObject, closestDistance);
 
         outDistance = closestDistance;
+        if (closestObject)
+            LOG("========== RESULT: %s ==========", closestObject->GetName().c_str());
+        else
+            LOG("========== RESULT: NOTHING ==========");
+
+
         return closestObject;
     }
 }
