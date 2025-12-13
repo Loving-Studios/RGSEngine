@@ -114,12 +114,16 @@ public:
         glBindVertexArray(0);
 
         SetupAABBBuffers();
+        owner->UpdateAABB();
 
         LOG("Mesh loaded to GPU: VAO=%d, VBO=%d, IBO=%d, Vertices=%d, Indices=%d",
             VAO, VBO, IBO, num_vertices, indexCount);
         LOG("AABB calculated: Min(%.2f, %.2f, %.2f) Max(%.2f, %.2f, %.2f)",
             owner->localAABB.minPoint.x, owner->localAABB.minPoint.y, owner->localAABB.minPoint.z,
             owner->localAABB.maxPoint.x, owner->localAABB.maxPoint.y, owner->localAABB.maxPoint.z);
+        LOG("Global AABB: Min(%.2f, %.2f, %.2f) Max(%.2f, %.2f, %.2f)",
+            owner->globalAABB.minPoint.x, owner->globalAABB.minPoint.y, owner->globalAABB.minPoint.z,
+            owner->globalAABB.maxPoint.x, owner->globalAABB.maxPoint.y, owner->globalAABB.maxPoint.z);
     }
 
     void CalculateLocalAABB(float* vertices, unsigned int num_vertices)
@@ -453,7 +457,8 @@ public:
     // Buffers for visualising the AABB
     unsigned int aabbVAO;
     unsigned int aabbVBO;
-
+    
+    // CPU data for mouse picking
     std::vector<float> cpuVertices;
     std::vector<unsigned int> cpuIndices;
 };

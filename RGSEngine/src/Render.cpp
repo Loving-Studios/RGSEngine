@@ -472,6 +472,25 @@ void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 			if (drawFaceNormals)   mesh->DrawFaceNormals();
 			if (drawAABBs)         mesh->DrawAABB();
 		}
+
+		if (selectedObject == go && mesh->aabbVAO != 0)
+		{
+			// Save line status
+			GLfloat oldLineWidth;
+			glGetFloatv(GL_LINE_WIDTH, &oldLineWidth);
+
+			// Thicker line for the selected item
+			glLineWidth(3.0f);
+
+			normalsShader->Use();
+			normalsShader->SetMat4("model", globalTransform);
+
+			// Draw AABB
+			mesh->DrawAABB();
+
+			// Restore thickness
+			glLineWidth(oldLineWidth);
+		}
 	}
 
 	ComponentCamera* camera = go->GetComponent<ComponentCamera>();

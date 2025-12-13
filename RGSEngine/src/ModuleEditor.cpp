@@ -295,6 +295,7 @@ bool ModuleEditor::Update(float dt)
                 if (hitObject->GetName() != "SceneRoot")
                 {
                     selectedGameObject = hitObject;
+                    Application::GetInstance().render->selectedObject = hitObject;
                     LOG("Selected: %s (distance: %.2f)", hitObject->GetName().c_str(), distance);
                 }
             }
@@ -302,6 +303,7 @@ bool ModuleEditor::Update(float dt)
             {
                 // Click in the empty space to deselect
                 selectedGameObject = nullptr;
+                Application::GetInstance().render->selectedObject = nullptr;
                 LOG("Deselected (no hit)");
             }
         }

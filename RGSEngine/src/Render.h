@@ -61,6 +61,8 @@ public:
 	const glm::mat4& GetViewMatrix() const { return viewMatrix; }
 	const glm::mat4& GetProjectionMatrix() const { return projectionMatrix; }
 
+	GameObject* selectedObject = nullptr;
+
 private:
 
 	// Shader
