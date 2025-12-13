@@ -448,6 +448,9 @@ bool ModuleEditor::Update(float dt)
     if (showTimerWindow)
         DrawTimerWindow();
 
+    if (showPerformanceWindow)
+        DrawPerformanceWindow();
+
     // Close the container window
     ImGui::End();
 
@@ -535,6 +538,8 @@ void ModuleEditor::DrawMainMenuBar()
             ImGui::MenuItem("Console", NULL, &showConsoleWindow);
             ImGui::MenuItem("Time Debug", NULL, &showTimeDebugWindow);
             ImGui::MenuItem("Timer", NULL, &showTimerWindow);
+
+            ImGui::MenuItem("Performance Stats", NULL, &showPerformanceWindow);
 
             ImGui::Separator();
 
@@ -1320,6 +1325,32 @@ void ModuleEditor::DrawConfigurationWindow()
             ImGui::SliderFloat("Camera Speed", &render->cameraSpeed, 0.1f, 10.0f);
             ImGui::SliderFloat("Camera Sensitivity", &render->cameraSensitivity, 0.01f, 1.0f);
             ImGui::SliderFloat("Camera FOV", &render->cameraFOV, 1.0f, 120.0f);
+
+            // --- Debug Draw ---
+            ImGui::Separator();
+            ImGui::Text("Debug Visualization");
+            ImGui::Checkbox("Draw Vertex Normals", &render->drawVertexNormals);
+            ImGui::Checkbox("Draw Face Normals", &render->drawFaceNormals);
+            ImGui::Checkbox("Draw AABBs", &render->drawAABBs);
+
+            // --- Frustum Culling ---
+            ImGui::Separator();
+            ImGui::Text("Frustum Culling");
+            ImGui::Checkbox("Enable Frustum Culling", &render->enableFrustumCulling);
+
+            if (render->enableFrustumCulling)
+            {
+                ImGui::Indent();
+                ImGui::Checkbox("Visualize Culling State", &render->visualizeFrustumCulling);
+
+                if (render->visualizeFrustumCulling)
+                {
+                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Green = Visible");
+                    ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Red = Culled");
+                    ImGui::TextColored(ImVec4(0.0f, 0.5f, 1.0f, 1.0f), "Blue = Selected");
+                }
+                ImGui::Unindent();
+            }
             ImGui::TreePop();
         }
         if (ImGui::TreeNode("Window"))
@@ -1647,6 +1678,53 @@ void ModuleEditor::DrawTimerWindow()
 
     ImGui::Text("Time Scale: %.2fx", Time::timeScale);
     ImGui::Text("Frame: %llu", Time::frameCount);
+
+    ImGui::End();
+}
+
+void ModuleEditor::DrawPerformanceWindow()
+{
+    if (!ImGui::Begin("Performance Statistics", &showPerformanceWindow))
+    {
+        ImGui::End();
+        return;
+    }
+
+    Render* render = Application::GetInstance().render.get();
+
+    // FPS
+    ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+    ImGui::Text("Frame Time: %.3f ms", 1000.0f / ImGui::GetIO().Framerate);
+
+    ImGui::Separator();
+    ImGui::Text("Render Stats:");
+
+    if (render->enableFrustumCulling)
+    {
+        ImGui::Text("Total Objects: %d", render->totalObjects);
+
+        ImGui::Text("Rendered: ");
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%d", render->renderedObjects);
+
+        ImGui::Text("Culled: ");
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "%d", render->culledObjects);
+
+        // Visual progress bar
+        if (render->totalObjects > 0)
+        {
+            float cullPercentage = (float)render->culledObjects / (float)render->totalObjects;
+            char overlay[32];
+            sprintf_s(overlay, "%.1f%% Skipped", cullPercentage * 100.0f);
+
+            ImGui::ProgressBar(cullPercentage, ImVec2(-1, 0.0f), overlay);
+        }
+    }
+    else
+    {
+        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Culling Disabled (All rendered)");
+    }
 
     ImGui::End();
 }

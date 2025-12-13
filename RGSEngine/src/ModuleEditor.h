@@ -36,6 +36,9 @@ private:
     void DrawConfigurationWindow();
     void DrawAboutWindow();
 
+    void DrawPerformanceWindow();
+    bool showPerformanceWindow = false;
+
     // Funtion recursive for the Hierarchy Window
     void DrawHierarchyNode(GameObject* go);
 

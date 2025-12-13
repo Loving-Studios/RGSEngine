@@ -40,10 +40,10 @@ namespace NormalShaders
 	const char* fragment = R"(
     #version 460 core
     out vec4 FragColor;
-
+	uniform vec4 debugColor = vec4(1.0, 1.0, 0.0, 1.0);
     void main()
     {
-        FragColor = vec4(1.0, 1.0, 0.0, 1.0); // Color amarillo
+       FragColor = debugColor;
     }
     )";
 }
@@ -87,6 +87,13 @@ Render::Render() : Module()
 	lastMouseY = 0;
 	orbitLastMouseX = 0;
 	orbitLastMouseY = 0;
+
+	// Initialise debug colours
+	colorNormal = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f); // Yellow (Default)
+	colorCulled = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f); // Red (Hidden)
+	colorVisible = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f); // Green (Visible)
+	colorSelected = glm::vec4(0.0f, 0.5f, 1.0f, 1.0f); // Blue (Selected)
+
 }
 
 // Destructor
@@ -348,6 +355,15 @@ bool Render::Update(float dt)
 	Application::GetInstance().window->GetWindowSize(width, height);
 	projectionMatrix = glm::perspective(glm::radians(cameraFOV), (float)width / (float)height, 0.1f, 100.0f);
 
+	// Extract frustrum from camera
+	glm::mat4 viewProjection = projectionMatrix * viewMatrix;
+	currentFrustum.ExtractFromMatrix(viewProjection);
+
+	// Reset culling statistics
+	totalObjects = 0;
+	culledObjects = 0;
+	renderedObjects = 0;
+
 	DrawGrid();
 
 	shader->Use();
@@ -383,6 +399,25 @@ bool Render::Update(float dt)
 	return true;
 }
 
+void Render::DrawAABBWithColor(ComponentMesh* mesh, const glm::mat4& transform, const glm::vec4& color)
+{
+	if (mesh == nullptr || mesh->aabbVAO == 0) return;
+
+	normalsShader->Use();
+	normalsShader->SetMat4("model", transform);
+	normalsShader->SetVec4("debugColor", color);
+
+	GLfloat oldLineWidth;
+	glGetFloatv(GL_LINE_WIDTH, &oldLineWidth);
+	glLineWidth(2.0f);
+
+	glBindVertexArray(mesh->aabbVAO);
+	glDrawArrays(GL_LINES, 0, 24);
+	glBindVertexArray(0);
+
+	glLineWidth(oldLineWidth);
+}
+
 void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 {
 	if (go == nullptr || !go->IsActive())
@@ -398,7 +433,48 @@ void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 	glm::mat4 localTransform = (transform != nullptr) ? transform->GetModelMatrix() : glm::mat4(1.0f);
 	glm::mat4 globalTransform = parentTransform * localTransform;
 
-	if (mesh != nullptr && transform != nullptr)
+	// === FRUSTUM CULLING ===
+	bool shouldRender = true;
+	bool isCulled = false;
+
+	if (mesh != nullptr && enableFrustumCulling)
+	{
+		totalObjects++;
+
+		if (!currentFrustum.IsAABBInside(go->globalAABB.minPoint, go->globalAABB.maxPoint))
+		{
+			culledObjects++;
+			shouldRender = false;
+			isCulled = true;
+		}
+		else
+		{
+			renderedObjects++;
+		}
+	}
+
+	// Visualize frustum culling if enabled
+	if (mesh != nullptr && visualizeFrustumCulling && enableFrustumCulling)
+	{
+		glm::vec4 aabbColor;
+
+		if (selectedObject == go)
+		{
+			aabbColor = colorSelected; // Blue for selected
+		}
+		else if (isCulled)
+		{
+			aabbColor = colorCulled; // Red for culled
+		}
+		else
+		{
+			aabbColor = colorVisible; // Green for visible
+		}
+
+		DrawAABBWithColor(mesh, globalTransform, aabbColor);
+	}
+
+	if (mesh != nullptr && transform != nullptr && shouldRender)
 	{
 		// Force the main shader is active
 		shader->Use();
@@ -461,19 +537,25 @@ void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 
 		glDisable(GL_BLEND);
 
-		if (drawVertexNormals || drawFaceNormals || drawAABBs)
+		if (drawVertexNormals || drawFaceNormals)
 		{
 			// Use the shader of the normals
 			normalsShader->Use();
 			// Send the model matrix
 			normalsShader->SetMat4("model", globalTransform);
+			normalsShader->SetVec4("debugColor", colorNormal);
 
 			if (drawVertexNormals) mesh->DrawNormals();
 			if (drawFaceNormals)   mesh->DrawFaceNormals();
-			if (drawAABBs)         mesh->DrawAABB();
 		}
 
-		if (selectedObject == go && mesh->aabbVAO != 0)
+		// Draw AABB if enabled (but not if frustum visualization is on)
+		if (drawAABBs && !visualizeFrustumCulling)
+		{
+			DrawAABBWithColor(mesh, globalTransform, colorNormal);
+		}
+
+		if (selectedObject == go && mesh->aabbVAO != 0 && !visualizeFrustumCulling)
 		{
 			// Save line status
 			GLfloat oldLineWidth;
@@ -484,6 +566,7 @@ void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 
 			normalsShader->Use();
 			normalsShader->SetMat4("model", globalTransform);
+			normalsShader->SetVec4("debugColor", colorSelected);
 
 			// Draw AABB
 			mesh->DrawAABB();
@@ -502,6 +585,7 @@ void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 		// Send the indentity transform because GenerateFrustumGizmo already uses the world coords with transform->position
 		glm::mat4 identity = glm::mat4(1.0f);
 		normalsShader->SetMat4("model", identity);
+		normalsShader->SetVec4("debugColor", colorNormal);
 
 		// Draw the lines
 		camera->DrawFrustum();
@@ -694,6 +778,7 @@ void Render::DrawGrid()
 	// Grid doesnt have model transformation, its the identity
 	glm::mat4 model = glm::mat4(1.0f);
 	normalsShader->SetMat4("model", model);
+	normalsShader->SetVec4("debugColor", colorNormal);
 
 	glBindVertexArray(gridVAO);
 	glDrawArrays(GL_LINES, 0, gridVertexCount);

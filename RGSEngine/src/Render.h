@@ -2,9 +2,11 @@
 #include <SDL3/SDL.h>
 #include <glm/glm.hpp>
 #include <memory>
+#include "Frustum.h"
 
 class Shader;
 class GameObject;
+class ComponentMesh;
 
 class Render : public Module
 {
@@ -36,6 +38,13 @@ public:
 	// Set background color
 	void SetBackgroundColor(SDL_Color color);
 
+	bool enableFrustumCulling = true;
+	bool visualizeFrustumCulling;
+
+	// Culling statistics
+	int totalObjects = 0;
+	int culledObjects = 0;
+	int renderedObjects = 0;
 
 public:
 	SDL_Color background;
@@ -60,8 +69,15 @@ public:
 
 	const glm::mat4& GetViewMatrix() const { return viewMatrix; }
 	const glm::mat4& GetProjectionMatrix() const { return projectionMatrix; }
+	const Frustum& GetCurrentFrustum() const { return currentFrustum; }
 
 	GameObject* selectedObject = nullptr;
+
+	// Debug colors for visualization
+	glm::vec4 colorNormal;
+	glm::vec4 colorCulled;
+	glm::vec4 colorVisible;
+	glm::vec4 colorSelected;
 
 private:
 
@@ -92,6 +108,8 @@ private:
 	int lastMouseX;
 	int lastMouseY;
 
+	Frustum currentFrustum;
+
 	//Helper functions
 	void UpdateCameraVectors();
 
@@ -111,5 +129,7 @@ private:
 
 	void CreateGrid();
 	void DrawGrid();
+
+	void DrawAABBWithColor(ComponentMesh* mesh, const glm::mat4& transform, const glm::vec4& color);
 };
 
