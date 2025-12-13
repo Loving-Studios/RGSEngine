@@ -196,7 +196,7 @@ The engine includes robust visualization tools for debugging:
 ## 🎯 Frustum Culling & Optimization
 
 The engine implements optimizations to ensure performance:
-- **Frustum Culling:** Objects outside the camera's viewing frustum are discarded from the render pipeline.
+- **Frustum Culling:** Objects outside the camera's viewing frustum are discarded from the render pipeline. Their boxes can still be seen marked in red. If we do not select a camera, frustum culling is from the editor's view. When selecting a camera, the frustum is seen from that camera, thus allowing us to have more cameras and see from each one without forcing any by code.
 - **Octree Acceleration:** An Octree structure is used to partition the space, significantly speeding up spatial queries like Frustum Culling and Mouse Picking by avoiding iterating over every object in the scene.
 
 ---
