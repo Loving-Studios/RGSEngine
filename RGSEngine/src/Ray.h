@@ -2,16 +2,21 @@
 
 #include <glm/glm.hpp>
 #include <limits>
+#include "Log.h"
 #include "GameObject.h"
 #include "ComponentMesh.h"
 #include "ComponentTransform.h"
-#include "Log.h"
 
 struct AABB;
 class GameObject;
 class ComponentMesh;
+struct Ray;
 
-// Structure for lightning
+namespace Raycast {
+    // We use “struct Ray” to refer to the global structure.
+    bool RayAABBIntersection(const struct Ray& ray, const AABB& aabb, float& tMin);
+}
+
 struct Ray
 {
     glm::vec3 origin;
@@ -20,53 +25,15 @@ struct Ray
     Ray() : origin(0.0f), direction(0.0f, 0.0f, -1.0f) {}
     Ray(glm::vec3 orig, glm::vec3 dir) : origin(orig), direction(glm::normalize(dir)) {}
 
-    // Calculate a point along the ray: P(t) = origin + t * direction
+    // Point on the ray: P(t) = origin + t * direction
     glm::vec3 PointAt(float t) const
     {
         return origin + t * direction;
     }
+
+    bool IntersectsAABB(const AABB& aabb) const;
+    bool IntersectsAABB(const AABB& aabb, float& distance) const;
 };
-
-namespace Raycast
-{
-    // Generates a ray from the camera to the position of the mouse on the screen
-    Ray ScreenPointToRay(
-        int mouseX, int mouseY,
-        int screenWidth, int screenHeight,
-        const glm::mat4& viewMatrix,
-        const glm::mat4& projectionMatrix);
-
-    // Returns true if there is an intersection, and tMin contains the distance to the point of impact.
-    bool RayAABBIntersection(const Ray& ray, const AABB& aabb, float& tMin);
-
-    // Ray-Triangle intersection test
-    bool RayTriangleIntersection(
-        const Ray& ray,
-        const glm::vec3& v0,
-        const glm::vec3& v1,
-        const glm::vec3& v2,
-        float& t);
-
-    // Ray against all triangles in a mesh
-    bool RayMeshIntersection(
-        const Ray& ray,
-        ComponentMesh* mesh,
-        const glm::mat4& modelMatrix,
-        float& outDistance);
-
-    // Find the nearest GameObject intersected by the ray
-    GameObject* FindClosestIntersection(
-        const Ray& ray,
-        GameObject* root,
-        float& outDistance);
-
-    // Recursive version to search the hierarchy
-    void FindIntersectionsRecursive(
-        const Ray& ray,
-        GameObject* go,
-        GameObject*& closestObject,
-        float& closestDistance);
-}
 
 namespace Raycast
 {
@@ -76,24 +43,17 @@ namespace Raycast
         const glm::mat4& viewMatrix,
         const glm::mat4& projectionMatrix)
     {
-        //Convert screen coordinates to NDC
         float x = (2.0f * mouseX) / screenWidth - 1.0f;
         float y = 1.0f - (2.0f * mouseY) / screenHeight;
 
-        //Create a point in the clip space
         glm::vec4 rayClip = glm::vec4(x, y, -1.0f, 1.0f);
-
-        //Convert from Clip Space to View Space
         glm::mat4 invProjection = glm::inverse(projectionMatrix);
         glm::vec4 rayEye = invProjection * rayClip;
         rayEye = glm::vec4(rayEye.x, rayEye.y, -1.0f, 0.0f);
 
-        //Convert from View Space to World Space
         glm::mat4 invView = glm::inverse(viewMatrix);
         glm::vec4 rayWorld = invView * rayEye;
         glm::vec3 rayDirection = glm::normalize(glm::vec3(rayWorld));
-
-        
         glm::vec3 cameraPosition = glm::vec3(invView[3]);
 
         return Ray(cameraPosition, rayDirection);
@@ -103,116 +63,70 @@ namespace Raycast
     {
         glm::vec3 invDir = 1.0f / ray.direction;
 
-        // Calculate t for each pair of planes (min and max)
         glm::vec3 t0 = (aabb.minPoint - ray.origin) * invDir;
         glm::vec3 t1 = (aabb.maxPoint - ray.origin) * invDir;
 
-        // Ensure that t0 <= t1 (in case of negative addresses)
         glm::vec3 tmin = glm::min(t0, t1);
         glm::vec3 tmax = glm::max(t0, t1);
 
-        // The entry point is the maximum of the minimums.
         tMin = glm::max(glm::max(tmin.x, tmin.y), tmin.z);
-
-        // The starting point is the minimum of the maximums.
         float tMax = glm::min(glm::min(tmax.x, tmax.y), tmax.z);
 
-        if (tMax < 0.0f)
-            return false;
-
-        if (tMin > tMax)
-            return false;
-
-        if (tMin < 0.0f)
-            tMin = tMax;
+        if (tMax < 0.0f) return false;
+        if (tMin > tMax) return false;
+        if (tMin < 0.0f) tMin = tMax;
 
         return true;
     }
 
-    inline bool RayTriangleIntersection(const Ray& ray,const glm::vec3& v0,const glm::vec3& v1,const glm::vec3& v2,float& t)
+    inline bool RayTriangleIntersection(const Ray& ray, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2, float& t)
     {
         const float EPSILON = 0.0000001f;
-
         glm::vec3 edge1 = v1 - v0;
         glm::vec3 edge2 = v2 - v0;
 
         glm::vec3 h = glm::cross(ray.direction, edge2);
         float a = glm::dot(edge1, h);
 
-        if (a > -EPSILON && a < EPSILON)
-            return false;
+        if (a > -EPSILON && a < EPSILON) return false;
 
         float f = 1.0f / a;
         glm::vec3 s = ray.origin - v0;
         float u = f * glm::dot(s, h);
 
-        if (u < 0.0f || u > 1.0f)
-            return false;
+        if (u < 0.0f || u > 1.0f) return false;
 
         glm::vec3 q = glm::cross(s, edge1);
         float v = f * glm::dot(ray.direction, q);
 
-        if (v < 0.0f || u + v > 1.0f)
-            return false;
+        if (v < 0.0f || u + v > 1.0f) return false;
 
-        // Calculate t to find the intersection point
         t = f * glm::dot(edge2, q);
-
-        if (t > EPSILON) // There is an intersection
-            return true;
-
-        return false; // There is a line intersection but no ray intersection.
+        return (t > EPSILON);
     }
 
-    inline bool RayMeshIntersection(
-        const Ray& ray,
-        ComponentMesh* mesh,
-        const glm::mat4& modelMatrix,
-        float& outDistance)
+    inline bool RayMeshIntersection(const Ray& ray, ComponentMesh* mesh, const glm::mat4& modelMatrix, float& outDistance)
     {
         if (mesh == nullptr || mesh->cpuVertices.empty() || mesh->cpuIndices.empty())
-        {
-            LOG("Mesh NULL or empty data");
             return false;
-        }
-
-        LOG("Testing mesh with %d triangles", mesh->cpuIndices.size() / 3);
 
         bool hit = false;
         float closestT = std::numeric_limits<float>::max();
-        int hitTriangleIndex = -1;
 
-        // Iterar por todos los triángulos
         for (size_t i = 0; i < mesh->cpuIndices.size(); i += 3)
         {
-            // Obtener índices del triángulo
             unsigned int i0 = mesh->cpuIndices[i];
             unsigned int i1 = mesh->cpuIndices[i + 1];
             unsigned int i2 = mesh->cpuIndices[i + 2];
 
-            // Obtener vértices en espacio local
-            glm::vec3 v0(
-                mesh->cpuVertices[i0 * 3 + 0],
-                mesh->cpuVertices[i0 * 3 + 1],
-                mesh->cpuVertices[i0 * 3 + 2]
-            );
-            glm::vec3 v1(
-                mesh->cpuVertices[i1 * 3 + 0],
-                mesh->cpuVertices[i1 * 3 + 1],
-                mesh->cpuVertices[i1 * 3 + 2]
-            );
-            glm::vec3 v2(
-                mesh->cpuVertices[i2 * 3 + 0],
-                mesh->cpuVertices[i2 * 3 + 1],
-                mesh->cpuVertices[i2 * 3 + 2]
-            );
+            glm::vec3 v0(mesh->cpuVertices[i0 * 3], mesh->cpuVertices[i0 * 3 + 1], mesh->cpuVertices[i0 * 3 + 2]);
+            glm::vec3 v1(mesh->cpuVertices[i1 * 3], mesh->cpuVertices[i1 * 3 + 1], mesh->cpuVertices[i1 * 3 + 2]);
+            glm::vec3 v2(mesh->cpuVertices[i2 * 3], mesh->cpuVertices[i2 * 3 + 1], mesh->cpuVertices[i2 * 3 + 2]);
 
-            // Transformar vértices a espacio mundo
             glm::vec4 v0World = modelMatrix * glm::vec4(v0, 1.0f);
             glm::vec4 v1World = modelMatrix * glm::vec4(v1, 1.0f);
             glm::vec4 v2World = modelMatrix * glm::vec4(v2, 1.0f);
 
-            // Test de intersección
             float t = 0.0f;
             if (RayTriangleIntersection(ray, glm::vec3(v0World), glm::vec3(v1World), glm::vec3(v2World), t))
             {
@@ -220,7 +134,6 @@ namespace Raycast
                 {
                     closestT = t;
                     hit = true;
-                    hitTriangleIndex = i / 3;
                 }
             }
         }
@@ -228,88 +141,80 @@ namespace Raycast
         if (hit)
         {
             outDistance = closestT;
-            LOG("HIT! Triangle %d, distance %.2f", hitTriangleIndex, closestT);
             return true;
         }
-        LOG("No triangle hit");
         return false;
     }
 
-    inline void FindIntersectionsRecursive(
-        const Ray& ray,
-        GameObject* go,
-        GameObject*& closestObject,
-        float& closestDistance)
+    inline bool IntersectGameObject(const Ray& ray, GameObject* go, float& outDistance)
     {
-        if (go == nullptr || !go->IsActive())
-            return;
+        if (go == nullptr || !go->IsActive()) return false;
 
-        LOG("Testing object: %s", go->GetName().c_str());
-
-        // Test intersection with the AABB of this object
         float tMinAABB = 0.0f;
-        bool hitAABB = RayAABBIntersection(ray, go->globalAABB, tMinAABB);
+        if (!RayAABBIntersection(ray, go->globalAABB, tMinAABB)) return false;
 
-        LOG("   AABB: Min(%.2f,%.2f,%.2f) Max(%.2f,%.2f,%.2f) Hit=%s",
-            go->globalAABB.minPoint.x, go->globalAABB.minPoint.y, go->globalAABB.minPoint.z,
-            go->globalAABB.maxPoint.x, go->globalAABB.maxPoint.y, go->globalAABB.maxPoint.z,
-            hitAABB ? "YES" : "NO");
-
-        if (hitAABB)
+        ComponentMesh* mesh = go->GetComponent<ComponentMesh>();
+        if (mesh != nullptr)
         {
-            ComponentMesh* mesh = go->GetComponent<ComponentMesh>();
-            if (mesh != nullptr)
+            glm::mat4 modelMatrix = go->GetGlobalMatrix();
+            return RayMeshIntersection(ray, mesh, modelMatrix, outDistance);
+        }
+        return false;
+    }
+
+    inline void FindIntersectionsRecursive(const Ray& ray, GameObject* go, GameObject*& closestObject, float& closestDistance)
+    {
+        if (go == nullptr || !go->IsActive()) return;
+
+        float tMinAABB = 0.0f;
+        if (RayAABBIntersection(ray, go->globalAABB, tMinAABB))
+        {
+            if (tMinAABB < closestDistance)
             {
-                LOG("   Has mesh, testing triangles...");
-                // If the AABB is farther away than the closest object found 
-                if (tMinAABB < closestDistance)
+                ComponentMesh* mesh = go->GetComponent<ComponentMesh>();
+                if (mesh != nullptr)
                 {
                     glm::mat4 modelMatrix = go->GetGlobalMatrix();
                     float meshDistance = 0.0f;
-
-                    //Lightning against Triangles
                     if (RayMeshIntersection(ray, mesh, modelMatrix, meshDistance))
                     {
-                        // If we find a closer hit, we update
                         if (meshDistance < closestDistance)
                         {
                             closestDistance = meshDistance;
                             closestObject = go;
-                            LOG("NEW CLOSEST: %s (dist %.2f)", go->GetName().c_str(), meshDistance);
                         }
                     }
                 }
             }
-            else {
-                LOG("   No mesh component");
-            }
         }
 
-        //Regardless of whether we touch the father or not, we look at the children.
         for (const auto& child : go->GetChildren())
         {
             FindIntersectionsRecursive(ray, child.get(), closestObject, closestDistance);
         }
     }
 
-    inline GameObject* FindClosestIntersection(
-        const Ray& ray,
-        GameObject* root,
-        float& outDistance)
+    inline GameObject* FindClosestIntersection(const Ray& ray, GameObject* root, float& outDistance)
     {
-        LOG("========== STARTING PICKING ==========");
         GameObject* closestObject = nullptr;
         float closestDistance = std::numeric_limits<float>::max();
 
         FindIntersectionsRecursive(ray, root, closestObject, closestDistance);
 
         outDistance = closestDistance;
-        if (closestObject)
-            LOG("========== RESULT: %s ==========", closestObject->GetName().c_str());
-        else
-            LOG("========== RESULT: NOTHING ==========");
-
-
         return closestObject;
     }
+}
+
+inline bool Ray::IntersectsAABB(const AABB& aabb) const
+{
+    float tMin = 0.0f;
+    // We call the global function
+    return Raycast::RayAABBIntersection(*this, aabb, tMin);
+}
+
+inline bool Ray::IntersectsAABB(const AABB& aabb, float& distance) const
+{
+    // We call the global function
+    return Raycast::RayAABBIntersection(*this, aabb, distance);
 }

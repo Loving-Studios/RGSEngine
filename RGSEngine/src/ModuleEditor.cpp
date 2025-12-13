@@ -295,24 +295,55 @@ bool ModuleEditor::Update(float dt)
             );
 
 
-            // Find the nearest intersecting object
-            GameObject* root = Application::GetInstance().scene->rootObject.get();
-            float distance = 0.0f;
-            GameObject* hitObject = Raycast::FindClosestIntersection(pickRay, root, distance);
+            GameObject* hitObject = nullptr;
+            float closestDistance = std::numeric_limits<float>::max();
 
-            if (hitObject != nullptr)
+            ModuleScene* scene = Application::GetInstance().scene.get();
+
+            
+            if (scene->useOctree && scene->octree && scene->octree->IsInitialized())
             {
-                // Do not select SceneRoot
-                if (hitObject->GetName() != "SceneRoot")
+                // Octree query - only objects close to the ray
+                std::vector<GameObject*> candidates = scene->octree->QueryRay(pickRay);
+
+                LOG("Octree mouse picking: %d candidates (from %d total objects)",
+                    (int)candidates.size(), scene->octree->GetObjectCount());
+
+                // Test each candidate
+                for (GameObject* candidate : candidates)
                 {
-                    selectedGameObject = hitObject;
-                    Application::GetInstance().render->selectedObject = hitObject;
-                    LOG("Selected: %s (distance: %.2f)", hitObject->GetName().c_str(), distance);
+                    if (candidate == nullptr) continue;
+
+                    ComponentMesh* mesh = candidate->GetComponent<ComponentMesh>();
+                    if (mesh == nullptr) continue;
+
+                    float distance = 0.0f;
+                    if (Raycast::IntersectGameObject(pickRay, candidate, distance))
+                    {
+                        if (distance < closestDistance)
+                        {
+                            closestDistance = distance;
+                            hitObject = candidate;
+                        }
+                    }
                 }
             }
             else
             {
-                // Click in the empty space to deselect
+                // Traditional method without Octree
+                GameObject* root = scene->rootObject.get();
+                hitObject = Raycast::FindClosestIntersection(pickRay, root, closestDistance);
+            }
+
+            // Select object
+            if (hitObject != nullptr && hitObject->GetName() != "SceneRoot")
+            {
+                selectedGameObject = hitObject;
+                Application::GetInstance().render->selectedObject = hitObject;
+                LOG("Selected: %s (distance: %.2f)", hitObject->GetName().c_str(), closestDistance);
+            }
+            else
+            {
                 selectedGameObject = nullptr;
                 Application::GetInstance().render->selectedObject = nullptr;
                 LOG("Deselected (no hit)");
@@ -408,6 +439,12 @@ bool ModuleEditor::Update(float dt)
             // If is moved, update the transform of the object
             selectedGameObject->SetLocalFromGlobal(modelMatrix);
             selectedGameObject->UpdateAABBRecursive();
+
+            ModuleScene* scene = Application::GetInstance().scene.get();
+            if (scene->useOctree && scene->octree)
+            {
+                scene->octree->Update(selectedGameObject);
+            }
         }
     }
 
@@ -466,6 +503,9 @@ bool ModuleEditor::Update(float dt)
 
     if (showPerformanceWindow)
         DrawPerformanceWindow();
+
+    if (showOctreeDebugWindow)
+        DrawOctreeDebugWindow();
 
     // Close the container window
     ImGui::End();
@@ -561,6 +601,8 @@ void ModuleEditor::DrawMainMenuBar()
 
             ImGui::MenuItem("Assets", NULL, &showAssetWindow);
             ImGui::MenuItem("Resource Statistics", NULL, &showResourceStatsWindow);
+
+            ImGui::MenuItem("Octree Debug", NULL, &showOctreeDebugWindow);
 
             if (ImGui::MenuItem("Reset Layout"))
             {
@@ -725,8 +767,6 @@ void ModuleEditor::DrawMainMenuBar()
         ImGui::EndMenuBar();
     }
 }
-// Add this to ModuleEditor.cpp in the DrawHierarchyWindow() method
-// Replace the DELETE key handling section:
 
 void ModuleEditor::DrawHierarchyWindow()
 {
@@ -753,6 +793,12 @@ void ModuleEditor::DrawHierarchyWindow()
             LOG("Deleting GameObject: %s (UID: %llu)",
                 selectedGameObject->GetName().c_str(), selectedGameObject->uid);
 
+            ModuleScene* scene = Application::GetInstance().scene.get();
+            if (scene->octree && scene->useOctree)
+            {
+                scene->octree->Remove(selectedGameObject);
+            }
+
             // Release resources BEFORE removing from parent
             selectedGameObject->ReleaseResourceReferences();
 
@@ -761,9 +807,11 @@ void ModuleEditor::DrawHierarchyWindow()
 
             // Deselect the object
             selectedGameObject = nullptr;
+            Application::GetInstance().render->selectedObject = nullptr;
 
             // Update reference counts in ResourceManager
             ResourceManager::GetInstance().UpdateReferenceCounts();
+
 
             LOG("GameObject deleted and references updated");
         }
@@ -814,7 +862,6 @@ void ModuleEditor::DrawHierarchyWindow()
     ImGui::End();
 }
 
-// Also update the context menu in DrawHierarchyNode:
 void ModuleEditor::DrawHierarchyNode(GameObject* go)
 {
     if (go == nullptr) return;
@@ -917,6 +964,12 @@ void ModuleEditor::DrawHierarchyNode(GameObject* go)
             if (go->GetParent())
             {
                 LOG("Context menu delete: %s", go->GetName().c_str());
+
+                ModuleScene* scene = Application::GetInstance().scene.get();
+                if (scene->octree && scene->useOctree)
+                {
+                    scene->octree->Remove(go);
+                }
 
                 // Release resources BEFORE removing
                 go->ReleaseResourceReferences();
@@ -1723,6 +1776,7 @@ void ModuleEditor::DrawPerformanceWindow()
     }
 
     Render* render = Application::GetInstance().render.get();
+    ModuleScene* scene = Application::GetInstance().scene.get();
 
     // FPS
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
@@ -1746,16 +1800,160 @@ void ModuleEditor::DrawPerformanceWindow()
         // Visual progress bar
         if (render->totalObjects > 0)
         {
-            float cullPercentage = (float)render->culledObjects / (float)render->totalObjects;
-            char overlay[32];
-            sprintf_s(overlay, "%.1f%% Skipped", cullPercentage * 100.0f);
+            float cullPercentage = (float)render->culledObjects / (float)render->totalObjects * 100.0f;
+            ImGui::Text("Cull Rate: %.1f%%", cullPercentage);
+            ImGui::ProgressBar(cullPercentage / 100.0f, ImVec2(-1, 0.0f));
+        }
 
-            ImGui::ProgressBar(cullPercentage, ImVec2(-1, 0.0f), overlay);
+        // === OCTREE STATS ===
+        if (render->useOctreeForCulling && scene->octree && scene->octree->IsInitialized())
+        {
+            ImGui::Separator();
+            ImGui::Text("Octree Optimization:");
+
+            ImGui::Text("Objects in Octree: %d", scene->octree->GetObjectCount());
+            ImGui::Text("Queried by Frustum: %d", render->octreeQueriedObjects);
+            ImGui::Text("Skipped by Octree: %d", render->octreeSkippedObjects);
+
+            if (scene->octree->GetObjectCount() > 0)
+            {
+                float skipRate = (float)render->octreeSkippedObjects /
+                    (float)scene->octree->GetObjectCount() * 100.0f;
+
+                ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f),
+                    "Octree Skip Rate: %.1f%%", skipRate);
+            }
         }
     }
     else
     {
-        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Culling Disabled (All rendered)");
+        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Frustum Culling Disabled");
+    }
+
+    ImGui::End();
+}
+
+void ModuleEditor::DrawOctreeDebugWindow()
+{
+    if (!ImGui::Begin("Octree Debug", &showOctreeDebugWindow))
+    {
+        ImGui::End();
+        return;
+    }
+
+    ModuleScene* scene = Application::GetInstance().scene.get();
+    Render* render = Application::GetInstance().render.get();
+
+    if (!scene->octree || !scene->octree->IsInitialized())
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Octree not initialized!");
+
+        if (ImGui::Button("Initialize Octree"))
+        {
+            scene->RebuildOctree();
+        }
+
+        ImGui::End();
+        return;
+    }
+
+    // === CONTROLS ===
+    ImGui::Text("Octree Controls:");
+    ImGui::Separator();
+
+    ImGui::Checkbox("Use Octree (Scene)", &scene->useOctree);
+    ImGui::Checkbox("Use Octree for Culling", &render->useOctreeForCulling);
+
+    if (ImGui::Button("Rebuild Octree"))
+    {
+        scene->RebuildOctree();
+    }
+
+    ImGui::Separator();
+
+    // === STATISTICS ===
+    ImGui::Text("Octree Statistics:");
+    ImGui::Separator();
+
+    ImGui::Text("Total Nodes: %d", scene->octree->GetNodeCount());
+    ImGui::Text("Total Objects: %d", scene->octree->GetObjectCount());
+    ImGui::Text("Max Depth: %d", scene->octree->GetMaxDepth());
+
+    ImGui::Separator();
+
+    // === PERFORMANCE ===
+    ImGui::Text("Performance:");
+    ImGui::Separator();
+
+    if (render->useOctreeForCulling)
+    {
+        ImGui::Text("Queried Objects: ");
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%d", render->octreeQueriedObjects);
+
+        ImGui::Text("Skipped Objects: ");
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "%d", render->octreeSkippedObjects);
+
+        if (scene->octree->GetObjectCount() > 0)
+        {
+            float skipPercentage = (float)render->octreeSkippedObjects /
+                (float)scene->octree->GetObjectCount() * 100.0f;
+
+            ImGui::Text("Skip Rate: %.1f%%", skipPercentage);
+            ImGui::ProgressBar(skipPercentage / 100.0f, ImVec2(-1, 0));
+
+            if (skipPercentage > 0)
+            {
+                ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f),
+                    "Octree saved ~%.1f%% of checks!", skipPercentage);
+            }
+        }
+    }
+    else
+    {
+        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f),
+            "Octree culling disabled");
+    }
+
+    ImGui::Separator();
+
+    // === VISUALISATION ===
+    ImGui::Text("Visualization:");
+    ImGui::Separator();
+
+    ImGui::Checkbox("Visualize Octree", &visualizeOctree);
+
+    if (visualizeOctree)
+    {
+        ImGui::Indent();
+        ImGui::Checkbox("Leafs Only", &visualizeOctreeLeafsOnly);
+        ImGui::Unindent();
+
+        // We will need to draw the Octree boxes.
+        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f),
+            "Visualization coming soon...");
+    }
+
+    ImGui::Separator();
+
+    // === BOUNDS INFO ===
+    if (ImGui::TreeNode("World Bounds"))
+    {
+        const OctreeNode* root = scene->octree->GetRoot();
+        if (root)
+        {
+            const AABB& bounds = root->GetBounds();
+            ImGui::Text("Min: (%.2f, %.2f, %.2f)",
+                bounds.minPoint.x, bounds.minPoint.y, bounds.minPoint.z);
+            ImGui::Text("Max: (%.2f, %.2f, %.2f)",
+                bounds.maxPoint.x, bounds.maxPoint.y, bounds.maxPoint.z);
+
+            glm::vec3 size = bounds.maxPoint - bounds.minPoint;
+            ImGui::Text("Size: (%.2f, %.2f, %.2f)",
+                size.x, size.y, size.z);
+        }
+        ImGui::TreePop();
     }
 
     ImGui::End();

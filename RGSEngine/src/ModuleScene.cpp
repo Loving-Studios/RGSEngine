@@ -123,16 +123,23 @@ bool ModuleScene::Start()
     // Add the camera to the scene
     AddGameObject(cameraGO);
 
+    // Initialise Octree
+  /*  AABB sceneBounds = OctreeUtils::CalculateSceneBounds(rootObject.get(), 20.0f);
+
+    OctreeConfig config;
+    config.maxDepth = 6;
+    config.maxObjectsPerNode = 8;
+    config.minNodeSize = 1.0f;
+
+    octree = std::make_unique<Octree>(sceneBounds, config);
+    */
+    LOG("Octree initialized");
+
     // Create the fbx from the start of the engine
     std::string streetPath = "Assets/Street/Street environment_V01.FBX";
 
     std::shared_ptr<GameObject> streetEnv = Application::GetInstance().loadFiles->LoadFBX(streetPath.c_str());
 
-    if (Application::GetInstance().isGameMode)
-    {
-        Play();
-        LOG("Auto-starting simulation (Game Mode)");
-    }
     if (streetEnv) {
         AddGameObject(streetEnv);
     }
@@ -146,6 +153,14 @@ bool ModuleScene::Start()
             LOG("Failed to load BakerHouse.fbx on start. Creating Pyramid as fallback.");
             CreatePyramid();
         }
+    }
+
+    RebuildOctree();
+
+    if (Application::GetInstance().isGameMode)
+    {
+        Play();
+        LOG("Auto-starting simulation (Game Mode)");
     }
 
     return true;
@@ -711,5 +726,60 @@ void ModuleScene::LoadScene(const char* path)
             // Add to the new root
             AddGameObject(newObj);
         }
+    }
+}
+
+// Method for reconstructing the Octree
+void ModuleScene::RebuildOctree()
+{
+    if (!octree) return;
+
+    LOG("Rebuilding Octree...");
+
+    // Calculate bounds of the current scene
+    AABB sceneBounds = OctreeUtils::CalculateSceneBounds(rootObject.get(), 20.0f);
+
+    // Reset the Octree
+    OctreeConfig config;
+    config.maxDepth = 6;
+    config.maxObjectsPerNode = 8;
+    config.minNodeSize = 1.0f;
+
+    octree->Initialize(sceneBounds, config);
+
+    // Insert all GameObjects that have a mesh
+    std::function<void(GameObject*)> insertObjects = [&](GameObject* go)
+        {
+            if (go == nullptr) return;
+
+            // If you have a mesh, insert it into the Octree
+            ComponentMesh* mesh = go->GetComponent<ComponentMesh>();
+            if (mesh != nullptr)
+            {
+                octree->Insert(go);
+            }
+
+            // Process children
+            for (const auto& child : go->GetChildren())
+            {
+                insertObjects(child.get());
+            }
+        };
+
+    insertObjects(rootObject.get());
+
+    LOG("Octree rebuilt: %d nodes, %d objects",
+        octree->GetNodeCount(), octree->GetObjectCount());
+}
+
+// Method for updating an object in the Octree
+void ModuleScene::UpdateObjectInOctree(GameObject* obj)
+{
+    if (!octree || !useOctree) return;
+
+    ComponentMesh* mesh = obj->GetComponent<ComponentMesh>();
+    if (mesh != nullptr)
+    {
+        octree->Update(obj);
     }
 }

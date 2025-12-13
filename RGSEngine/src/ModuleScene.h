@@ -5,6 +5,7 @@
 #include "SceneState.h"
 #include <vector>
 #include <memory> // Used for the std::shared_ptr
+#include "Octree.h"
 
 class ModuleScene : public Module
 {
@@ -47,6 +48,15 @@ public:
 
     void SaveScene(const char* path);
     void LoadScene(const char* path);
+
+    std::unique_ptr<Octree> octree;
+    bool useOctree = true;
+
+    // Rebuild the Octree
+    void RebuildOctree();
+
+    // Update a GameObject in the Octree
+    void UpdateObjectInOctree(GameObject* obj);
 
 public:
     // This is a Smart Pointer for the rootObject

@@ -89,4 +89,10 @@ private:
     float simulationElapsedTime = 0.0f;  
     float simulationStartTime = 0.0f;    
 
+    bool showOctreeDebugWindow = false;
+    void DrawOctreeDebugWindow();
+
+    bool visualizeOctree = false;
+    bool visualizeOctreeLeafsOnly = true;
+
 };

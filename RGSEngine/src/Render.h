@@ -38,13 +38,20 @@ public:
 	// Set background color
 	void SetBackgroundColor(SDL_Color color);
 
-	bool enableFrustumCulling = true;
+	bool enableFrustumCulling;//=true;
 	bool visualizeFrustumCulling;
+
+	// Octree
+	bool useOctreeForCulling = true;
 
 	// Culling statistics
 	int totalObjects = 0;
 	int culledObjects = 0;
 	int renderedObjects = 0;
+
+	// Octree statistics
+	int octreeQueriedObjects = 0;
+	int octreeSkippedObjects = 0; 
 
 public:
 	SDL_Color background;
@@ -117,6 +124,8 @@ private:
 	void ProcessMouseOrbit(int deltaX, int deltaY);
 
 	void DrawGameObject(GameObject* go, const glm::mat4& parentTransform);
+
+	void DrawNonMeshObjects(GameObject* go, const glm::mat4& parentTransform);
 
 	void CreateDefaultCheckerTexture();
 

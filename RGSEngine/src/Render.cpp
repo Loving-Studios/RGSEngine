@@ -384,6 +384,9 @@ bool Render::Update(float dt)
 	culledObjects = 0;
 	renderedObjects = 0;
 
+	octreeQueriedObjects = 0;
+	octreeSkippedObjects = 0;
+
 	DrawGrid();
 
 	shader->Use();
@@ -403,7 +406,41 @@ bool Render::Update(float dt)
 	// Start the process to draw recursive
 	if (root != nullptr)
 	{
-		DrawGameObject(root.get(), glm::mat4(1.0f));
+		ModuleScene* scene = Application::GetInstance().scene.get();
+
+		if (useOctreeForCulling && scene->useOctree && scene->octree && scene->octree->IsInitialized())
+		{
+			// Use Octree for frustum culling
+			std::vector<GameObject*> visibleObjects = scene->octree->QueryFrustum(currentFrustum);
+
+			octreeQueriedObjects = visibleObjects.size();
+			octreeSkippedObjects = scene->octree->GetObjectCount() - octreeQueriedObjects;
+
+			// Draw only potentially visible objects
+			for (GameObject* obj : visibleObjects)
+			{
+				if (obj != nullptr && obj->IsActive())
+				{
+					if (obj->GetParent() == nullptr && obj != scene->rootObject.get())
+						continue;
+					// Obtain the global transformation of the object
+					glm::mat4 parentTransform = glm::mat4(1.0f);
+					if (obj->GetParent() != nullptr)
+					{
+						parentTransform = obj->GetParent()->GetGlobalMatrix();
+					}
+
+					DrawGameObject(obj, parentTransform);
+				}
+			}
+
+			DrawNonMeshObjects(root.get(), glm::mat4(1.0f));
+		}
+		else
+		{
+			// Método tradicional sin Octree
+			DrawGameObject(root.get(), glm::mat4(1.0f));
+		}
 	}
 
 	static bool loggedOnce = false;
@@ -805,4 +842,37 @@ void Render::DrawGrid()
 	glBindVertexArray(gridVAO);
 	glDrawArrays(GL_LINES, 0, gridVertexCount);
 	glBindVertexArray(0);
+}
+
+void Render::DrawNonMeshObjects(GameObject* go, const glm::mat4& parentTransform)
+{
+	if (go == nullptr || !go->IsActive())
+		return;
+
+	ComponentTransform* transform = go->GetComponent<ComponentTransform>();
+	glm::mat4 localTransform = (transform != nullptr) ? transform->GetModelMatrix() : glm::mat4(1.0f);
+	glm::mat4 globalTransform = parentTransform * localTransform;
+
+	// Solo dibujar si NO tiene mesh (ya se dibujaron con el Octree)
+	ComponentMesh* mesh = go->GetComponent<ComponentMesh>();
+	if (mesh == nullptr)
+	{
+		// Dibujar cámaras u otros componentes visuales
+		ComponentCamera* camera = go->GetComponent<ComponentCamera>();
+		if (camera != nullptr && camera->active)
+		{
+			normalsShader->Use();
+			glm::mat4 identity = glm::mat4(1.0f);
+			normalsShader->SetMat4("model", identity);
+			normalsShader->SetVec4("debugColor", colorNormal);
+			camera->DrawFrustum();
+			shader->Use();
+		}
+	}
+
+	// Recursivamente procesar hijos
+	for (const auto& child : go->GetChildren())
+	{
+		DrawNonMeshObjects(child.get(), globalTransform);
+	}
 }
