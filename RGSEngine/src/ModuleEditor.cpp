@@ -33,7 +33,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <commdlg.h>
 
-ModuleEditor::ModuleEditor() : Module(), oldCerrStreamBuf(nullptr)
+ModuleEditor::ModuleEditor() : Module()
 {
     name = "editor";
 }
@@ -162,10 +162,6 @@ bool ModuleEditor::Start()
     }
 
     LOG("ModuleEditor Start");
-
-    // Redirect std::cerr to our stringstream
-    oldCerrStreamBuf = std::cerr.rdbuf(); // Save the original Buffer
-    std::cerr.rdbuf(consoleStream.rdbuf()); // Redirect to our
 
     // Create the ImGui context
     IMGUI_CHECKVERSION();
@@ -486,8 +482,6 @@ bool ModuleEditor::CleanUp()
     assetWindow.reset();
     resourceStatsWindow.reset();
 
-    // Restart the original buffer of std::cerr
-    std::cerr.rdbuf(oldCerrStreamBuf);
     // Clean ImGui
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
@@ -1256,18 +1250,27 @@ void ModuleEditor::DrawConsoleWindow()
     // Button to clear the console
     if (ImGui::Button("Clear"))
     {
-        consoleStream.str(""); // Clear the stringstream
-        consoleStream.clear(); // Clear the state flags
+        Log::logBuffer.clear();
     }
+
+    ImGui::SameLine();
+    // Button to copy the full console
+    if (ImGui::Button("Copy to Clipboard"))
+    {
+        ImGui::LogToClipboard();
+        ImGui::LogText("%s", Log::logBuffer.c_str());
+        ImGui::LogFinish();
+    }
+
     ImGui::Separator();
 
     // Scroll on the console
-    ImGui::BeginChild("ScrollingRegion");
+    ImGui::BeginChild("ScrollingRegion", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
 
-    // Show the text
-    ImGui::TextUnformatted(consoleStream.str().c_str());
+    // Show the text acumulated from the begining and the new
+    ImGui::TextUnformatted(Log::logBuffer.c_str());
 
-    // Auto-scroll if we are next to the end
+    // Auto-scroll if is close to the end
     if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
     {
         ImGui::SetScrollHereY(1.0f);

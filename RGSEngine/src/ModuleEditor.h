@@ -59,10 +59,6 @@ private:
     bool showTimeDebugWindow = false;
     void DrawTimeDebugWindow();
 
-    // Buffer for the console
-    std::streambuf* oldCerrStreamBuf;
-    std::stringstream consoleStream;
-
     // FPS graph
     std::vector<float> fpsLog;
 

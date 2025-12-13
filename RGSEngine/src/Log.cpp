@@ -1,22 +1,26 @@
 #include "Log.h"
-#include <iostream>
-#include <cstdarg>
-#include <cstdio>
-#include <string>
+#include <windows.h>
+#include <stdio.h>
+#include <stdarg.h>
 
-void Log(const char file[], int line, const char* format, ...)
+// Initialize the empty buffer for the console
+std::string Log::logBuffer = "";
+
+void log(const char file[], int line, const char* format, ...)
 {
-    static char tmpString1[4096];
-    static va_list ap;
+    static char tmp_string[4096];
+    static char tmp_string2[4096];
+    static va_list  ap;
 
     // Construct the string from variable arguments
     va_start(ap, format);
-    vsnprintf(tmpString1, 4096, format, ap);
+    vsprintf_s(tmp_string, 4096, format, ap);
     va_end(ap);
 
-    // Construct the final log message
-    std::string logMessage = std::string("\n") + file + "(" + std::to_string(line) + ") : " + tmpString1;
+    // Output window of Visual Studio
+    sprintf_s(tmp_string2, 4096, "\n%s(%d) : %s", file, line, tmp_string);
+    OutputDebugStringA(tmp_string2);
 
-    // Print the formatted string to the standard error stream
-    std::cerr << logMessage << std::endl;
+    // Construct the final log message
+    Log::logBuffer += std::string(tmp_string) + "\n";
 }

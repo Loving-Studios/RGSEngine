@@ -1,11 +1,14 @@
-#ifndef __LOG_H__
-#define __LOG_H__
+#pragma once
+#include <stdio.h>
+#include <string>
 
-#include <cstdio>
-#include <cstdarg>
+#define LOG(format, ...) log(__FILE__, __LINE__, format, __VA_ARGS__)
 
-#define LOG(format, ...) Log(__FILE__, __LINE__, format, ##__VA_ARGS__)
+void log(const char file[], int line, const char* format, ...);
 
-void Log(const char file[], int line, const char* format, ...);
+class Log
+{
+public:
 
-#endif  // __LOG_H__
+    static std::string logBuffer;
+};

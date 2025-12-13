@@ -35,25 +35,25 @@ LoadFiles::~LoadFiles()
 
 bool LoadFiles::Awake()
 {
-    LOG("Loading LoadFiles module");
+    LOG("--- LOADING LoadFiles MODULE ---");
 
-    // Custom File Format, create them automatically on start if they are deleted
-    if (!std::filesystem::exists("Library"))
-        std::filesystem::create_directory("Library");
+    LOG("[FILE SYSTEM] Checking Library directories integrity...");
+    bool createdLibrary = false;
+    bool createdAssets = false;
+    if (!std::filesystem::exists("Library")) { std::filesystem::create_directory("Library"); createdLibrary = true; }
+    if (!std::filesystem::exists("Library/Meshes")) { std::filesystem::create_directory("Library/Meshes"); createdLibrary = true; }
+    if (!std::filesystem::exists("Library/Textures")) { std::filesystem::create_directory("Library/Textures"); createdLibrary = true; }
+    if (!std::filesystem::exists("Assets")) { std::filesystem::create_directory("Assets"); createdAssets = true; }
+    if (!std::filesystem::exists("Assets/Scenes")) { std::filesystem::create_directory("Assets/Scenes"); createdAssets = true; }
 
-    if (!std::filesystem::exists("Library/Meshes"))
-        std::filesystem::create_directory("Library/Meshes");
+    if (createdAssets) LOG("[FILE SYSTEM] Created missing Assets directories.");
+    else LOG("[FILE SYSTEM] File system structure Assets/ is OK.");
 
-    if (!std::filesystem::exists("Library/Textures"))
-        std::filesystem::create_directory("Library/Textures");
-
-    if (!std::filesystem::exists("Assets"))
-        std::filesystem::create_directory("Assets");
-
-    if (!std::filesystem::exists("Assets/Scenes"))
-        std::filesystem::create_directory("Assets/Scenes");
+    if (createdLibrary) LOG("[FILE SYSTEM] Created missing Library directories.");
+    else LOG("[FILE SYSTEM] File system structure Library/ is OK.");
 
     // Inicializar DevIL
+    LOG("[DEVIL] Initializing Image Library...");
     ilInit();
     iluInit();
 
@@ -64,12 +64,12 @@ bool LoadFiles::Awake()
     ILenum error = ilGetError();
     if (error != IL_NO_ERROR)
     {
-        LOG("Error initializing DevIL: 0x%x", error);
+        LOG("[ERROR] Initializing DevIL FAILED: 0x%x", error);
         // No retornar false, solo advertir
     }
     else
     {
-        LOG("DevIL initialized successfully");
+        LOG("[DEVIL] DevIL Library initialized successfully", ilGetInteger(IL_VERSION_NUM));
     }
 
     return true;
@@ -214,6 +214,9 @@ void LoadFiles::HandleDropFile(const char* file_path)
 
 std::shared_ptr<GameObject> LoadFiles::LoadFBX(const char* file_path)
 {
+    LOG("=================================================");
+    LOG("[IMPORT] Starting FBX Load Process: %s", file_path);
+
     const aiScene* scene = aiImportFile(file_path,
         aiProcess_Triangulate |
         aiProcess_FlipUVs |
@@ -224,13 +227,14 @@ std::shared_ptr<GameObject> LoadFiles::LoadFBX(const char* file_path)
     if (scene == nullptr || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
         const char* error = aiGetErrorString();
-        LOG("Error loading FBX %s: %s", file_path, error);
+        LOG("[ERROR] ASSIMP Import Failed Loading FBX %s: %s", file_path, error);
         return nullptr;
     }
 
-    LOG("Successfully loaded FBX: %s", file_path);
+    LOG("[IMPORT] Successfully loaded FBX: %s", file_path);
     LOG("Number of meshes: %d", scene->mNumMeshes);
     LOG("Number of materials: %d", scene->mNumMaterials);
+    LOG("Root Node: %s", scene->mRootNode->mName.C_Str());
 
     // Get FBX directory for relative textures
     std::string fbxPath(file_path);
@@ -247,6 +251,7 @@ std::shared_ptr<GameObject> LoadFiles::LoadFBX(const char* file_path)
 
     if (scene->mNumMeshes == 1)
     {
+        LOG("[IMPORT] Processing Single Mesh Mode...");
         MeshData meshData;
         ProcessMesh(scene->mMeshes[0], meshData);
         rootObject = CreateGameObjectFromMesh(meshData, fileName.c_str(), file_path);
@@ -262,6 +267,7 @@ std::shared_ptr<GameObject> LoadFiles::LoadFBX(const char* file_path)
     }
     else
     {
+        LOG("[IMPORT] Processing Multi-Node Hierarchy...");
         rootObject = ProcessNode(scene->mRootNode, scene, nullptr, fbxDirectory, file_path, glm::mat4(1.0f));
         if (rootObject)
             rootObject->name = fileName;
@@ -292,7 +298,7 @@ std::shared_ptr<GameObject> LoadFiles::LoadFBX(const char* file_path)
         AcquireResourceReferencesForGameObject(rootObject, file_path);
         LOG("Resource references acquired for loaded FBX");
     }
-
+    LOG("=================================================");
     return rootObject;
 }
 
@@ -992,6 +998,7 @@ bool LoadFiles::LoadMeshFromCustomFormat(const char* path, MeshData& meshData)
 
 unsigned int LoadFiles::LoadTexture(const char* file_path)
 {
+    LOG("[TEXTURE] Requesting Load: %s", file_path);
     std::string path(file_path);
     std::string extension = path.substr(path.find_last_of(".") + 1);
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
@@ -1002,16 +1009,17 @@ unsigned int LoadFiles::LoadTexture(const char* file_path)
 
     if (extension == "rgst")
     {
-        LOG("Loading custom texture format directly: %s", file_path);
+        LOG("[TEXTURE] Loading custom texture format directly: %s", file_path);
         if (LoadTextureFromCustomFormat(file_path, header, buffer))
         {
             textureID = CreateTextureFromBuffer(header, buffer);
             delete[] buffer;
+            LOG("Custom Texture Loaded (ID: %d)", textureID);
             return textureID;
         }
         else
         {
-            LOG("Error loading custom texture file.");
+            LOG("[ERROR] Loading custom texture file.");
             return 0;
         }
     }
@@ -1028,18 +1036,19 @@ unsigned int LoadFiles::LoadTexture(const char* file_path)
     if (f.good())
     {
         f.close();
-        LOG("Texture found in Library, loading custom format: %s", libraryPath.c_str());
+        LOG("[TEXTURE] Texture found in Library, loading custom format: %s", libraryPath.c_str());
         if (LoadTextureFromCustomFormat(libraryPath.c_str(), header, buffer))
         {
             textureID = CreateTextureFromBuffer(header, buffer);
             // Clean RAM memory, is already in VRAM
             delete[] buffer;
+            LOG("Texture Loaded from Library (ID: %d)", textureID);
             return textureID;
         }
     }
 
     // If it does not exist or failed to load, we import with DevIL slow path to load
-    LOG("Texture NOT found in Library, importing with DevIL: %s", file_path);
+    LOG("[TEXTURE] Texture NOT found in Library, importing with DevIL: %s", file_path);
     if (ImportTextureWithDevIL(file_path, buffer, header))
     {
         // Save it in Library for next time
@@ -1047,6 +1056,7 @@ unsigned int LoadFiles::LoadTexture(const char* file_path)
 
         // Create the texture in OpenGL
         textureID = CreateTextureFromBuffer(header, buffer);
+        LOG("Texture Imported & Cached (ID: %d)", textureID);
         delete[] buffer;
     }
 
@@ -1128,6 +1138,7 @@ bool LoadFiles::LoadTextureFromCustomFormat(const char* path, TextureHeader& hea
 
 unsigned int LoadFiles::CreateTextureFromBuffer(const TextureHeader& header, const char* buffer)
 {
+    LOG("[GPU] Uploading Texture Data (%dx%d px)...", header.width, header.height);
     GLuint textureID;
     glGenTextures(1, &textureID);
     glBindTexture(GL_TEXTURE_2D, textureID);
@@ -1143,7 +1154,7 @@ unsigned int LoadFiles::CreateTextureFromBuffer(const TextureHeader& header, con
     glGenerateMipmap(GL_TEXTURE_2D);
 
     glBindTexture(GL_TEXTURE_2D, 0);
-    LOG("Texture created in OpenGL (ID: %d) from buffer", textureID);
+    LOG("[GPU] Texture created in OpenGL (ID: %d) from buffer", textureID);
     return textureID;
 }
 
