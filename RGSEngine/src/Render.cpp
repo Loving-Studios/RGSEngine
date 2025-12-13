@@ -358,19 +358,14 @@ bool Render::Update(float dt)
 	glm::mat4 cullingView = viewMatrix;
 	glm::mat4 cullingProj = projectionMatrix;
 
-	// PERO: Si tenemos un objeto seleccionado y es una CÁMARA, usamos SU matriz
+	// If we have an object selected and it is a CAMERA, we use ITS array
 	if (selectedObject != nullptr)
 	{
 		ComponentCamera* selectedCam = selectedObject->GetComponent<ComponentCamera>();
 		if (selectedCam != nullptr && selectedCam->active)
 		{
-			// Necesitamos la View Matrix de la cámara del juego
-			// ViewMatrix = Inversa de la Transformación Global de la cámara
 			cullingView = glm::inverse(selectedObject->GetGlobalMatrix());
 
-			// Necesitamos la Projection Matrix de la cámara del juego
-			// Asumimos que ComponentCamera tiene un método o variables para esto. 
-			// Si no tiene GetProjectionMatrix(), reconstrúyela con sus datos:
 			cullingProj = glm::perspective(
 				glm::radians(selectedCam->cameraFOV),
 				(float)width / (float)height,
