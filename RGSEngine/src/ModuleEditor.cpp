@@ -32,6 +32,9 @@
 #include <IL/il.h>
 #include <glm/gtc/type_ptr.hpp>
 
+
+static bool CheckIfGameObjectExists(GameObject* target, GameObject* root);
+
 ModuleEditor::ModuleEditor() : Module()
 {
     name = "editor";
@@ -228,6 +231,19 @@ bool ModuleEditor::Update(float dt)
 
     ModuleScene* scene = Application::GetInstance().scene.get();
     ModuleScene::SimulationState state = scene->GetSimulationState();
+
+
+    static ModuleScene::SimulationState previousState = ModuleScene::SimulationState::STOPPED;
+
+    if (previousState != ModuleScene::SimulationState::STOPPED &&
+        state == ModuleScene::SimulationState::STOPPED)
+    {
+        LOG("Editor detected STOP - clearing selection");
+        selectedGameObject = nullptr;
+        Application::GetInstance().render->selectedObject = nullptr;
+    }
+
+    previousState = state;
 
    
     if (state == ModuleScene::SimulationState::PLAYING)
@@ -958,6 +974,21 @@ void ModuleEditor::DrawInspectorWindow()
     }
 
     ModuleScene* scene = Application::GetInstance().scene.get();
+    if (scene && scene->rootObject)
+    {
+        bool exists = CheckIfGameObjectExists(selectedGameObject, scene->rootObject.get());
+        if (!exists)
+        {
+            LOG("Selected object no longer exists - clearing selection");
+            selectedGameObject = nullptr;
+            Application::GetInstance().render->selectedObject = nullptr;
+            ImGui::Text("No GameObject selected.");
+            ImGui::End();
+            return;
+        }
+    }
+
+   
     bool isPlaying = scene->IsPlaying() || scene->IsPaused();
 
     if (isPlaying)
@@ -1727,4 +1758,18 @@ void ModuleEditor::DrawPerformanceWindow()
     }
 
     ImGui::End();
+}
+
+static bool CheckIfGameObjectExists(GameObject* target, GameObject* root)
+{
+    if (!target || !root) return false;
+    if (root == target) return true;
+
+    for (const auto& child : root->GetChildren())
+    {
+        if (child.get() == target) return true;
+        if (CheckIfGameObjectExists(target, child.get()))
+            return true;
+    }
+    return false;
 }
