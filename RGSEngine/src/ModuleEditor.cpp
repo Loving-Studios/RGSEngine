@@ -871,6 +871,7 @@ void ModuleEditor::DrawHierarchyNode(GameObject* go)
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
     {
         selectedGameObject = go; // Selected
+        Application::GetInstance().render->selectedObject = go;
     }
 
     // Drag the object on the hierarchy
