@@ -4,7 +4,7 @@
 
 #include <windows.h>
 #include <psapi.h>
-#pragma comment(lib, "psapi.lib")
+#include <commdlg.h>
 
 #include "ModuleEditor.h"
 
@@ -23,7 +23,7 @@
 #include "ComponentMesh.h"
 #include "ComponentTexture.h"
 #include "ComponentCamera.h"
-#include "ImGuizmo.h"
+#include <ImGuizmo.h>
 #include "LoadFiles.h"
 #include "Time.h"
 #include "ResourceManager.h"
@@ -31,7 +31,6 @@
 
 #include <IL/il.h>
 #include <glm/gtc/type_ptr.hpp>
-#include <commdlg.h>
 
 ModuleEditor::ModuleEditor() : Module()
 {
