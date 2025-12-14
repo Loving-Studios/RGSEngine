@@ -123,18 +123,6 @@ bool ModuleScene::Start()
     // Add the camera to the scene
     AddGameObject(cameraGO);
 
-    // Initialise Octree
-  /*  AABB sceneBounds = OctreeUtils::CalculateSceneBounds(rootObject.get(), 20.0f);
-
-    OctreeConfig config;
-    config.maxDepth = 6;
-    config.maxObjectsPerNode = 8;
-    config.minNodeSize = 1.0f;
-
-    octree = std::make_unique<Octree>(sceneBounds, config);
-    */
-    LOG("Octree initialized");
-
     // Create the fbx from the start of the engine
     std::string streetPath = "Assets/Street/Street environment_V01.FBX";
 
@@ -154,6 +142,40 @@ bool ModuleScene::Start()
             CreatePyramid();
         }
     }
+
+    LOG("Updating all AABBs before Octree initialization...");
+
+    // Función recursiva para actualizar todos los AABBs
+    std::function<void(GameObject*)> updateAllAABBs = [&](GameObject* go)
+        {
+            if (go == nullptr) return;
+
+            // Actualizar AABB de este objeto
+            go->UpdateAABB();
+
+            // Recursivamente actualizar hijos
+            for (const auto& child : go->GetChildren())
+            {
+                updateAllAABBs(child.get());
+            }
+        };
+
+    // Actualizar todos los AABBs desde la raíz
+    updateAllAABBs(rootObject.get());
+
+    LOG("All AABBs updated");
+
+    // Initialise Octree
+    AABB sceneBounds = OctreeUtils::CalculateSceneBounds(rootObject.get(), 20.0f);
+
+    OctreeConfig config;
+    config.maxDepth = 6;
+    config.maxObjectsPerNode = 8;
+    config.minNodeSize = 1.0f;
+
+    octree = std::make_unique<Octree>(sceneBounds, config);
+
+    LOG("Octree initialized");
 
     RebuildOctree();
 
