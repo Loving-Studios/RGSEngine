@@ -322,6 +322,7 @@ void AssetWindow::DrawAssetDetails()
                 if (gameObject)
                 {
                     Application::GetInstance().scene->AddGameObject(gameObject);
+                    Application::GetInstance().scene->RebuildOctree();
                     LOG("FBX loaded to scene: %s", selectedPath.c_str());
 
                     // Update reference counts
