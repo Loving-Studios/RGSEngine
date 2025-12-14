@@ -222,10 +222,12 @@ Open `View -> Performance Stats` to monitor efficiency metrics:
 * **Octree Efficiency:** Visual bar showing the percentage of collision checks avoided thanks to the Octree.
 
 #### 2. Octree Debugging & Control
-Accessible via `View -> Octree Debug`. This window provides deep control over the spatial partitioning:
-* **Visualize Structure:** You can render the actual Octree nodes in the scene.
-* **Rebuild Octree:** A button to force a complete recalculation of the spatial tree. Useful if objects have been moved significantly or the scene structure has changed.
-* **Octree Stats:** View real-time data on node count, max depth, and total objects inside the tree.
+Accessible via `View -> Octree Debug`. This window allows you to see the spatial partitioning structure in the scene:
+* **Toggle Visualization:** Renders the Octree nodes as wireframe boxes.
+    * 🟨 **Yellow (All Nodes):** Shows the complete subdivision structure of the scene.
+    * 🟩 **Green (Leafs Only):** Shows only the final nodes that contain objects, useful for seeing density.
+* **Rebuild Octree:** Forces a complete recalculation of the tree (useful if the scene changes significantly).
+* **Octree Stats:** Displays real-time metrics like node count, max depth, and efficiency rates.
 ---
 
 ## 📦 Resource Management
