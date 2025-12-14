@@ -166,7 +166,7 @@ bool ModuleScene::Start()
     LOG("All AABBs updated");
 
     // Initialise Octree
-    AABB sceneBounds = OctreeUtils::CalculateSceneBounds(rootObject.get(), 20.0f);
+    AABB sceneBounds = OctreeUtils::CalculateSceneBounds(rootObject.get(), 5000.0f);
 
     OctreeConfig config;
     config.maxDepth = 6;
