@@ -2008,7 +2008,7 @@ void ModuleEditor::DrawOctreeDebugWindow()
 
     ImGui::Checkbox("Visualize Octree", &render->visualizeOctree);
 
-    if (visualizeOctree)
+    if (render->visualizeOctree)
     {
         ImGui::Indent();
         ImGui::Checkbox("Leafs Only", &render->visualizeOctreeLeafs);
