@@ -58,6 +58,7 @@ private:
     bool showConfigurationWindow = true;
     bool showAboutWindow = false;
 
+    bool scrollToSelection = false;
 
     bool showTimeDebugWindow = false;
     void DrawTimeDebugWindow();

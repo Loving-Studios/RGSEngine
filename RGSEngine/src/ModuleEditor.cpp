@@ -32,6 +32,18 @@
 #include <IL/il.h>
 #include <glm/gtc/type_ptr.hpp>
 
+static bool IsAncestor(GameObject* parent, GameObject* child)
+{
+    if (parent == nullptr || child == nullptr) return false;
+
+    GameObject* iterator = child->GetParent();
+    while (iterator != nullptr)
+    {
+        if (iterator == parent) return true;
+        iterator = iterator->GetParent();
+    }
+    return false;
+}
 
 static bool CheckIfGameObjectExists(GameObject* target, GameObject* root);
 
@@ -346,6 +358,8 @@ bool ModuleEditor::Update(float dt)
                 selectedGameObject = hitObject;
                 Application::GetInstance().render->selectedObject = hitObject;
                 LOG("Selected: %s (distance: %.2f)", hitObject->GetName().c_str(), closestDistance);
+
+                scrollToSelection = true;
             }
             else
             {
@@ -864,12 +878,32 @@ void ModuleEditor::DrawHierarchyWindow()
         ImGui::EndDragDropTarget();
     }
 
+    if (scrollToSelection)
+    {
+        scrollToSelection = false;
+    }
+
     ImGui::End();
 }
 
 void ModuleEditor::DrawHierarchyNode(GameObject* go)
 {
     if (go == nullptr) return;
+
+    if (scrollToSelection && selectedGameObject != nullptr)
+    {
+        //If this node is a ‘grandparent’ of the selected node, open it to view its contents.
+        if (IsAncestor(go, selectedGameObject))
+        {
+            ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+        }
+
+        //If this node IS the selected one, scroll down to here
+        if (go == selectedGameObject)
+        {
+            ImGui::SetScrollHereY();
+        }
+    }
 
     ImGui::PushID(go);
 
