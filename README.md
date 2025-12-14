@@ -220,6 +220,12 @@ Open `View -> Performance Stats` to monitor efficiency metrics:
 * **Total Objects:** Total count in the scene.
 * **Rendered vs Culled:** Real-time counter of objects being drawn vs. skipped.
 * **Octree Efficiency:** Visual bar showing the percentage of collision checks avoided thanks to the Octree.
+
+#### 2. Octree Debugging & Control
+Accessible via `View -> Octree Debug`. This window provides deep control over the spatial partitioning:
+* **Visualize Structure:** You can render the actual Octree nodes in the scene.
+* **Rebuild Octree:** A button to force a complete recalculation of the spatial tree. Useful if objects have been moved significantly or the scene structure has changed.
+* **Octree Stats:** View real-time data on node count, max depth, and total objects inside the tree.
 ---
 
 ## 📦 Resource Management
