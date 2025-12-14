@@ -243,25 +243,30 @@ bool ModuleEditor::Update(float dt)
         Application::GetInstance().render->selectedObject = nullptr;
     }
 
-    previousState = state;
+    
 
    
-    if (state == ModuleScene::SimulationState::PLAYING)
+    if (previousState == ModuleScene::SimulationState::STOPPED &&  state == ModuleScene::SimulationState::PLAYING)
     {
         
-        if (simulationStartTime == 0.0f)
-        {
-            simulationStartTime = Time::realTimeSinceStartup;
-        }
-        
-        simulationElapsedTime = Time::realTimeSinceStartup - simulationStartTime;
+        // Reset del timer
+        simulationElapsedTime = 0.0f;
+        simulationStartTime = Time::realTimeSinceStartup;
+        LOG("Timer started");
     }
-   
+
+    if (state == ModuleScene::SimulationState::PLAYING)
+    {
+        simulationElapsedTime += Time::realDeltaTime;
+    }
+
     else if (state == ModuleScene::SimulationState::STOPPED)
     {
         simulationElapsedTime = 0.0f;
         simulationStartTime = 0.0f;
     }
+
+    previousState = state;
 
     // --- FOCUS ON SELECTED GAMEOBJECT ---
 
