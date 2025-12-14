@@ -94,8 +94,4 @@ private:
 
     bool showOctreeDebugWindow = false;
     void DrawOctreeDebugWindow();
-
-    bool visualizeOctree = false;
-    bool visualizeOctreeLeafsOnly = true;
-
 };
