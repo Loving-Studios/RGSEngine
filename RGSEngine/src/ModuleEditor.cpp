@@ -226,6 +226,8 @@ bool ModuleEditor::PreUpdate()
 
 bool ModuleEditor::Update(float dt)
 {
+    objectSelectedThisFrame = false;
+
     // --- HISTORIC OF FPS ---
     // Limited to 100 frames
     if (fpsLog.size() < 100)
@@ -360,6 +362,7 @@ bool ModuleEditor::Update(float dt)
                 LOG("Selected: %s (distance: %.2f)", hitObject->GetName().c_str(), closestDistance);
 
                 scrollToSelection = true;
+                objectSelectedThisFrame = true;
             }
             else
             {
@@ -453,16 +456,58 @@ bool ModuleEditor::Update(float dt)
             glm::value_ptr(modelMatrix));
 
         // Check if the user has used the ImGuizmo
-        if (ImGuizmo::IsUsing())
+        if (ImGuizmo::IsUsing() && !objectSelectedThisFrame)
         {
-            // If is moved, update the transform of the object
-            selectedGameObject->SetLocalFromGlobal(modelMatrix);
-            selectedGameObject->UpdateAABBRecursive();
+            glm::mat4 currentGlobal = selectedGameObject->GetGlobalMatrix();
+            bool hasChanged = false;
 
-            ModuleScene* scene = Application::GetInstance().scene.get();
-            if (scene->useOctree && scene->octree)
+            const float* gizmoPtr = glm::value_ptr(modelMatrix);
+            const float* objPtr = glm::value_ptr(currentGlobal);
+
+            // We compare the 16 floats in the array with a small margin.
+            for (int i = 0; i < 16; ++i) {
+                if (abs(gizmoPtr[i] - objPtr[i]) > 0.001f) {
+                    hasChanged = true;
+                    break;
+                }
+            }
+
+            if (hasChanged)
             {
-                scene->octree->Update(selectedGameObject);
+                // We apply the change to the object
+                selectedGameObject->SetLocalFromGlobal(modelMatrix);
+
+                // We updated his and all his children's AABBs.
+                selectedGameObject->UpdateAABBRecursive();
+
+                ModuleScene* scene = Application::GetInstance().scene.get();
+                if (scene->useOctree && scene->octree && scene->octree->IsInitialized())
+                {
+                    std::function<void(GameObject*)> updateOctreeRecursive =
+                        [&](GameObject* go)
+                        {
+                            // We only update in the Octree if it has Mesh
+                            if (go->GetComponent<ComponentMesh>() != nullptr)
+                            {
+                                //Check that the AABB is valid before inserting it
+                                glm::vec3 size = go->globalAABB.maxPoint - go->globalAABB.minPoint;
+                                // We avoid putting objects with size 0
+                                if (size.x > 0.01f && size.y > 0.01f && size.z > 0.01f)
+                                {
+                                    scene->octree->Update(go);
+                                }
+                            }
+
+                            // Seguir bajando por los hijos
+                            for (const auto& child : go->GetChildren())
+                            {
+                                updateOctreeRecursive(child.get());
+                            }
+                        };
+
+                    // We launch the update from the selected object downwards.
+                    updateOctreeRecursive(selectedGameObject);
+                }
             }
         }
     }
@@ -1961,17 +2006,18 @@ void ModuleEditor::DrawOctreeDebugWindow()
     ImGui::Text("Visualization:");
     ImGui::Separator();
 
-    ImGui::Checkbox("Visualize Octree", &visualizeOctree);
+    ImGui::Checkbox("Visualize Octree", &render->visualizeOctree);
 
     if (visualizeOctree)
     {
         ImGui::Indent();
-        ImGui::Checkbox("Leafs Only", &visualizeOctreeLeafsOnly);
+        ImGui::Checkbox("Leafs Only", &render->visualizeOctreeLeafs);
         ImGui::Unindent();
 
-        // We will need to draw the Octree boxes.
-        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f),
-            "Visualization coming soon...");
+        if (render->visualizeOctreeLeafs)
+            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Showing Leaf Nodes (Green)");
+        else
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "Showing All Nodes (Yellow)");
     }
 
     ImGui::Separator();

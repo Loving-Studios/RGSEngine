@@ -13,6 +13,8 @@
 #include "ComponentTexture.h"
 #include "ComponentCamera.h"
 
+#include "Octree.h"
+
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
 
@@ -139,6 +141,8 @@ bool Render::Start()
 	CreateDefaultCheckerTexture();
 
 	CreateGrid();
+
+	CreateDebugBox();
 
 	return true;
 }
@@ -389,6 +393,26 @@ bool Render::Update(float dt)
 
 	DrawGrid();
 
+	ModuleScene* scene = Application::GetInstance().scene.get();
+	if (visualizeOctree && scene->octree && scene->octree->IsInitialized())
+	{
+		//We choose which nodes we want to see (all or only the end leaves)
+		std::vector<AABB> bounds;
+		if (visualizeOctreeLeafs)
+			bounds = scene->octree->GetLeafNodeBounds();
+		else
+			bounds = scene->octree->GetAllNodeBounds();
+
+		//We define the colour (green for leaves, yellow for parent nodes)
+		glm::vec4 color = visualizeOctreeLeafs ? glm::vec4(0.0f, 1.0f, 0.0f, 1.0f) : glm::vec4(1.0f, 0.8f, 0.0f, 1.0f);
+
+		//We draw each box
+		for (const auto& box : bounds)
+		{
+			DrawDebugBox(box, color);
+		}
+	}
+
 	shader->Use();
 
 	// Send matrix to shader
@@ -490,6 +514,22 @@ void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 	glm::mat4 localTransform = (transform != nullptr) ? transform->GetModelMatrix() : glm::mat4(1.0f);
 	glm::mat4 globalTransform = parentTransform * localTransform;
 
+	bool isSelected = (selectedObject == go);
+
+	if (!isSelected && selectedObject != nullptr)
+	{
+		// Nota: Necesitas que GameObject tenga IsAncestorOf, o usar un bucle manual aquí.
+		// La forma más rápida si no tienes esa función en GameObject.h es:
+		GameObject* parent = go->GetParent();
+		while (parent != nullptr) {
+			if (parent == selectedObject) {
+				isSelected = true;
+				break;
+			}
+			parent = parent->GetParent();
+		}
+	}
+
 	// === FRUSTUM CULLING ===
 	bool shouldRender = true;
 	bool isCulled = false;
@@ -515,7 +555,7 @@ void Render::DrawGameObject(GameObject* go, const glm::mat4& parentTransform)
 	{
 		glm::vec4 aabbColor;
 
-		if (selectedObject == go)
+		if (isSelected)
 		{
 			aabbColor = colorSelected; // Blue for selected
 		}
@@ -681,6 +721,9 @@ bool Render::CleanUp()
 	// Grid CleanUp
 	if (gridVAO != 0) { glDeleteVertexArrays(1, &gridVAO); gridVAO = 0; }
 	if (gridVBO != 0) { glDeleteBuffers(1, &gridVBO); gridVBO = 0; }
+
+	if (debugBoxVAO != 0) { glDeleteVertexArrays(1, &debugBoxVAO); debugBoxVAO = 0; }
+	if (debugBoxVBO != 0) { glDeleteBuffers(1, &debugBoxVBO); debugBoxVBO = 0; }
 
 	// The shader is from this class so we have to CleanUp
 	shader.reset();
@@ -875,4 +918,58 @@ void Render::DrawNonMeshObjects(GameObject* go, const glm::mat4& parentTransform
 	{
 		DrawNonMeshObjects(child.get(), globalTransform);
 	}
+}
+
+void Render::CreateDebugBox()
+{
+	float vertices[] = {
+		-0.5f, -0.5f, -0.5f,  0.5f, -0.5f, -0.5f,
+		 0.5f, -0.5f, -0.5f,  0.5f,  0.5f, -0.5f,
+		 0.5f,  0.5f, -0.5f, -0.5f,  0.5f, -0.5f,
+		-0.5f,  0.5f, -0.5f, -0.5f, -0.5f, -0.5f,
+
+		-0.5f, -0.5f,  0.5f,  0.5f, -0.5f,  0.5f,
+		 0.5f, -0.5f,  0.5f,  0.5f,  0.5f,  0.5f,
+		 0.5f,  0.5f,  0.5f, -0.5f,  0.5f,  0.5f,
+		-0.5f,  0.5f,  0.5f, -0.5f, -0.5f,  0.5f,
+
+		-0.5f, -0.5f, -0.5f, -0.5f, -0.5f,  0.5f,
+		 0.5f, -0.5f, -0.5f,  0.5f, -0.5f,  0.5f,
+		 0.5f,  0.5f, -0.5f,  0.5f,  0.5f,  0.5f,
+		-0.5f,  0.5f, -0.5f, -0.5f,  0.5f,  0.5f
+	};
+
+	glGenVertexArrays(1, &debugBoxVAO);
+	glGenBuffers(1, &debugBoxVBO);
+
+	glBindVertexArray(debugBoxVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, debugBoxVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	glBindVertexArray(0);
+}
+
+void Render::DrawDebugBox(const AABB& aabb, const glm::vec4& color)
+{
+	if (debugBoxVAO == 0) return;
+
+	// Calculate Size and Centre of AABB
+	glm::vec3 size = aabb.maxPoint - aabb.minPoint;
+	glm::vec3 center = (aabb.minPoint + aabb.maxPoint) * 0.5f;
+
+	// Create model matrix: Move to centre -> Scale to size
+	glm::mat4 model = glm::mat4(1.0f);
+	model = glm::translate(model, center);
+	model = glm::scale(model, size);
+
+	normalsShader->Use();
+	normalsShader->SetMat4("model", model);
+	normalsShader->SetVec4("debugColor", color);
+
+	glBindVertexArray(debugBoxVAO);
+	glDrawArrays(GL_LINES, 0, 24); // 12 lines * 2 vertices
+	glBindVertexArray(0);
 }

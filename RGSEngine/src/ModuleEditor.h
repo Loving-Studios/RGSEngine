@@ -60,6 +60,8 @@ private:
 
     bool scrollToSelection = false;
 
+    bool objectSelectedThisFrame = false;
+
     bool showTimeDebugWindow = false;
     void DrawTimeDebugWindow();
 

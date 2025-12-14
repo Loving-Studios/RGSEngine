@@ -764,7 +764,7 @@ void ModuleScene::RebuildOctree()
     LOG("Rebuilding Octree...");
 
     // Calculate bounds of the current scene
-    AABB sceneBounds = OctreeUtils::CalculateSceneBounds(rootObject.get(), 20.0f);
+    AABB sceneBounds = OctreeUtils::CalculateSceneBounds(rootObject.get(), 5000.0f);
 
     // Reset the Octree
     OctreeConfig config;

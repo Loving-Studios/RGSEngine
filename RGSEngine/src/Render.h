@@ -7,6 +7,7 @@
 class Shader;
 class GameObject;
 class ComponentMesh;
+struct AABB;
 
 class Render : public Module
 {
@@ -66,6 +67,8 @@ public:
 	bool drawVertexNormals;
 	bool drawFaceNormals;
 	bool drawAABBs;
+	bool visualizeOctree = false;
+	bool visualizeOctreeLeafs = false;
 
 	void ProcessKeyboardMovement(float dt);
 	void FocusOnGameObject(GameObject* go);
@@ -136,8 +139,13 @@ private:
 	unsigned int gridVBO = 0;
 	unsigned int gridVertexCount = 0;
 
+	unsigned int debugBoxVAO = 0;
+	unsigned int debugBoxVBO = 0;
+
 	void CreateGrid();
 	void DrawGrid();
+	void CreateDebugBox();
+	void DrawDebugBox(const AABB& aabb, const glm::vec4& color);
 
 	void DrawAABBWithColor(ComponentMesh* mesh, const glm::mat4& transform, const glm::vec4& color);
 };
