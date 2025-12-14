@@ -195,10 +195,25 @@ The engine includes robust visualization tools for debugging:
 
 ## 🎯 Frustum Culling & Optimization
 
-The engine implements optimizations to ensure performance:
-- **Frustum Culling:** Objects outside the camera's viewing frustum are discarded from the render pipeline. Their boxes can still be seen marked in red. If we do not select a camera, frustum culling is from the editor's view. When selecting a camera, the frustum is seen from that camera, thus allowing us to have more cameras and see from each one without forcing any by code.
-- **Octree Acceleration:** An Octree structure is used to partition the space, significantly speeding up spatial queries like Frustum Culling and Mouse Picking by avoiding iterating over every object in the scene.
+The engine implements advanced optimizations to ensure high performance by rendering only what is necessary:
+- **Frustum Culling:** Objects outside the camera's viewing frustum are discarded from the render pipeline, saving valuable GPU resources.
+   -**Dynamic Camera Culling:** If no camera is selected, culling is calculated based on the Editor's view. When a Game Camera is selected, the system automatically switches to use that camera's perspective for culling calculations. This allows developers to debug exactly what the player will see from any camera in the scene without modifying code.
+- **Octree Acceleration:** An Octree data structure partitions the 3D space, significantly speeding up spatial queries. This optimization applies to both Frustum Culling and Mouse Picking, avoiding the need to iterate over every single object in the scene.
+### 🛠️ Debugging Tools
+You can visualize the optimization process in real-time via the `Configuration -> Render` menu.
 
+When **"Visualize Culling"** is enabled, bounding boxes change color to represent their state:
+| Color | State | Description |
+| :---: | :--- | :--- |
+| 🟢 | **Visible** | Object is inside the frustum and being rendered. |
+| 🔴 | **Culled** | Object is outside the frustum and discarded. |
+| 🔵 | **Selected** | The currently selected object in the hierarchy. |
+
+#### Performance Statistics
+Open `View -> Performance Stats` to monitor efficiency metrics:
+* **Total Objects:** Total count in the scene.
+* **Rendered vs Culled:** Real-time counter of objects being drawn vs. skipped.
+* **Octree Efficiency:** Visual bar showing the percentage of collision checks avoided thanks to the Octree.
 ---
 
 ## 📦 Resource Management
