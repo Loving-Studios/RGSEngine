@@ -191,9 +191,14 @@ bool ModuleScene::Start()
 bool ModuleScene::Update(float dt)
 {
     // Update the rootObject wich will be updating all his childrens and components
-    if (rootObject && (simulationState == SimulationState::PLAYING || simulationState == SimulationState::PAUSED))
+    /*if (rootObject && (simulationState == SimulationState::PLAYING || simulationState == SimulationState::PAUSED))
     {
         
+        rootObject->Update();
+    }*/
+
+    if (rootObject)
+    {
         rootObject->Update();
     }
     return true;

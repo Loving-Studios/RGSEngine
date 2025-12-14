@@ -66,7 +66,10 @@ public:
 
     void Update() override
     {
-        GenerateFrustumGizmo();
+        if (active)
+        {
+            GenerateFrustumGizmo();
+        }
     }
 
     void GenerateFrustumGizmo()
