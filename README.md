@@ -41,7 +41,13 @@ The camera system is designed to mimic the Unity-style controls:
 - **Primitives:** Create primitives from the `Create` menu. They are automatically saved to the Library to ensure visibility after loading.
 
 ## 🔍 Mouse Picking
-Implemented using raycasting through the octree with optional debug visualization.
+Precise object selection implemented via **Raycasting**. The system projects a ray from the camera through the mouse cursor into the 3D world.
+
+* **High Performance:** Uses the **Octree** to instantly discard objects far from the ray, avoiding unnecessary checks.
+* **Pixel-Perfect Precision:** The system performs a multi-step check for accuracy:
+    1. **Broad Phase:** Checks intersection with the object's AABB (Axis-Aligned Bounding Box).
+    2. **Narrow Phase:** If the AABB is hit, it iterates through the mesh triangles to ensure the click actually touches the geometry.
+* **Editor Integration:** Clicking an object automatically highlights it in the Hierarchy.
 
 ---
 
